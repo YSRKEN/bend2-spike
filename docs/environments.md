@@ -18,8 +18,8 @@ Linux では公式インストーラをそのまま使い、Windows では WSL �
 | clang | 18.1.3 | 14.0.6（`--target native` のイメージ） |
 | Lean | 4.34.0 | なし |
 
-クラウド環境はセッションごとに割り当てが変わりうる。Linux の列のうち、OS と clang は処理時間を測った 2026-09-30 のセッションの値。
-CPU・使える CPU・メモリ・GPU は、同じ 2026-09-30 に別のセッションで調べた値（`lscpu`、`nproc`、`free -h`、`/proc/meminfo`、
+クラウド環境はセッションごとに割り当てが変わりうる。Linux の列のうち、OS の版と clang は処理時間を測った 2026-09-30 のセッションの値。
+カーネルの版・CPU・使える CPU・メモリ・GPU は、同じ 2026-09-30 に別のセッションで調べた値（`uname`、`lscpu`、`nproc`、`free -h`、`/proc/meminfo`、
 cgroup v1 の `memory.limit_in_bytes` と `cpu.cfs_quota_us`。cgroup v2 の `cpu.max`・`memory.max` は存在しなかった）で、
 処理時間を測ったときの割り当てと同じとは限らない。
 
