@@ -3,11 +3,14 @@
 #
 # - JSON の読み書き: クラウドには jq がある。Windows の Git Bash には無いので Python で代える
 # - bend の動かし方: bend が PATH にあればそれを使う（クラウド）。無くて wslc があれば、
-#   container/Containerfile から作ったイメージ（既定 bend2-slim、環境変数 BEND_CHECK_IMAGE で変更）の中で動かす（Windows）
+#   container/Containerfile から作ったイメージ（既定 bend2-slim、環境変数 BEND_CHECK_IMAGE で変更）の中で動かす（Windows）。
+#   --verdict には Lean 入りのイメージ（既定 bend2-verdict、環境変数 BEND_VERDICT_IMAGE で変更）を使う
 
 export BEND_NO_TELEMETRY=1
 export PATH="$HOME/.bend/bin:$PATH"
 BEND_IMAGE="${BEND_CHECK_IMAGE:-bend2-slim}"
+# --verdict 用の Lean 入りイメージ（wslc build --target verdict で作る）。無ければ --verdict は飛ばす
+BEND_VERDICT_IMAGE="${BEND_VERDICT_IMAGE:-bend2-verdict}"
 
 # ---- JSON ----
 # json_get <フィールド...>: 入力の JSON から、最初に見つかった文字列のフィールドを出す（"tool_input.file_path" の形）

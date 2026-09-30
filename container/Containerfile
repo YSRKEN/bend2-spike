@@ -3,8 +3,9 @@
 #   既定（--target なし）: bend だけの最小構成。実行と --check-only まで
 #   --target native      : 上に clang を足したもの。ネイティブビルド（bend x.bend -o x）もできる
 #   --target gpu         : CUDA の NVRTC と clang 19 入り。`!` 付きの呼び出しを GPU で走らせる
+#   --target verdict     : 最小構成に Lean を足したもの。--verdict（証明の再検査）ができる
 #
-# どちらも --verdict（Lean が要る）は含まない。
+# verdict 以外は --verdict（Lean が要る）を含まない。
 # bend は glibc に動的リンクしているので、musl の Alpine では動かない。Debian slim を使う。
 FROM debian:bookworm-slim AS slim
 
@@ -50,6 +51,22 @@ ENV PATH="/root/.bend/bin:${PATH}" BEND_NO_TELEMETRY=1 BEND_HOST=0.0.0.0 CUDA_HO
     LIBRARY_PATH=/usr/local/cuda/lib64/stubs
 WORKDIR /work
 CMD ["bash"]
+
+# 証明の再検査用（wslc build --target verdict ...）。bend PROOF.bend --verdict には Lean v4.34.0 が要る。
+# 初回の --verdict は Lean で書かれたカーネル（~/.bend/bendtt）をビルドするので、ここで一度済ませておく。
+FROM slim AS verdict
+ARG LEAN_VER=v4.34.0
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends curl ca-certificates git \
+ && curl -fsSL -o /tmp/elan-init.sh https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh \
+ && sh /tmp/elan-init.sh -y --no-modify-path --default-toolchain "leanprover/lean4:${LEAN_VER}" \
+ && rm -f /tmp/elan-init.sh \
+ && rm -rf /var/lib/apt/lists/*
+ENV PATH="/root/.elan/bin:${PATH}"
+RUN mkdir -p /tmp/warm \
+ && printf 'import Base\n\ndef one() -> Nat:\n  1n\n' > /tmp/warm/main.bend \
+ && cd /tmp/warm && bend main.bend --verdict \
+ && rm -rf /tmp/warm
 
 # 既定のターゲットは最後の段になるので、最小構成をもう一度置く
 FROM slim

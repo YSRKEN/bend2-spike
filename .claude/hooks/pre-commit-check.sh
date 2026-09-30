@@ -4,7 +4,8 @@
 #
 # 1. docs と実物の食い違い（docs-check.py）: 法則の一覧と docs/proofs.md の表、リンクとパスの実在
 # 2. 証明: .bend に変更（ステージ済み・未ステージ・未追跡）があるときだけ、各 PROOF.bend を --check-only で検査する。
-#    bend がそのまま使えて Lean もある環境（クラウド）では --verdict も走らせる
+#    bend がそのまま使えて Lean もある環境（クラウド）と、wslc に Lean 入りのイメージ（bend2-verdict）がある環境（Windows）では
+#    --verdict も走らせる
 #
 # 検査するのは作業ツリーの中身（commit されるステージの中身とは限らない）。
 # 編集後フック（bend-check.sh）が拾えない、ファイルの移動などの変更を commit の前に拾うためのもの。
@@ -48,11 +49,17 @@ if [ -n "$(git -C "$root" status --porcelain --untracked-files=all -- '*.bend' 2
     modes=("--check-only")
     if [ "$BEND_RUNNER" = native ] && command -v lean >/dev/null 2>&1; then
       modes+=("--verdict")
+    elif [ "$BEND_RUNNER" = wslc ] && wslc image inspect "$BEND_VERDICT_IMAGE" >/dev/null 2>&1; then
+      modes+=("--verdict")
     fi
     while IFS= read -r proof; do
       dir=$(dirname "$proof")
       for m in "${modes[@]}"; do
-        out=$(bend_run "$dir" PROOF.bend "$m")
+        if [ "$BEND_RUNNER" = wslc ] && [ "$m" = --verdict ]; then
+          out=$(BEND_IMAGE="$BEND_VERDICT_IMAGE" bend_run "$dir" PROOF.bend "$m")
+        else
+          out=$(bend_run "$dir" PROOF.bend "$m")
+        fi
         code=$?
         if [ $code -ne 0 ]; then
           head_out=$(printf '%s\n' "$out" | head -n 25 | cut -c1-400)
