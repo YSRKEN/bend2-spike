@@ -24,7 +24,8 @@ def main(root):
     docs = [root / "README.md"] + sorted((root / "docs").glob("*.md"))
     docs = [d for d in docs if d.exists()]
 
-    laws = {m for f in root.rglob("LAWS.bend") if ".git" not in f.parts
+    laws = {m for f in root.rglob("LAWS.bend")
+            if not any(p.startswith(".") for p in f.relative_to(root).parts)
             for m in LAW.findall(f.read_text(encoding="utf-8"))}
     proofs = root / "docs" / "proofs.md"
     if laws and proofs.exists():

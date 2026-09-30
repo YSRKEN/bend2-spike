@@ -59,7 +59,7 @@ if [ -n "$(git -C "$root" status --porcelain --untracked-files=all -- '*.bend' 2
           report+="bend PROOF.bend $m が失敗（exit $code、${dir#"$root"/}）:"$'\n'"$head_out"$'\n\n'
         fi
       done
-    done < <(find "$root" -name PROOF.bend -not -path '*/.git/*')
+    done < <(find "$root" -name PROOF.bend -not -path '*/.*/*')
   fi
 fi
 
