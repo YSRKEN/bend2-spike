@@ -1,2 +1,3 @@
-server
+# ネイティブビルドの生成物（cd server && bend server.bend -o server）
+/server/server
 *.o
