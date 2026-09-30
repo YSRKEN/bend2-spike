@@ -1,6 +1,11 @@
-# Bend 2 を試すための最小構成（実行と --check-only まで。ネイティブビルドと --verdict は含まない）
+# Bend 2 を試すためのコンテナ
+#
+#   既定（--target なし）: bend だけの最小構成。実行と --check-only まで
+#   --target native      : 上に clang を足したもの。ネイティブビルド（bend x.bend -o x）もできる
+#
+# どちらも --verdict（Lean が要る）は含まない。
 # bend は glibc に動的リンクしているので、musl の Alpine では動かない。Debian slim を使う。
-FROM debian:bookworm-slim
+FROM debian:bookworm-slim AS slim
 
 ARG BEND_VER=2.0.34
 ARG BEND_SHA=78106a97af242429dcc057258eb8d10f69cddebcd5e263022185a52d003e09bf
@@ -16,6 +21,17 @@ RUN apt-get update \
  && rm -rf /tmp/bend /tmp/bend.tgz \
  && apt-get purge -y curl && apt-get autoremove -y && rm -rf /var/lib/apt/lists/*
 
-ENV PATH="/root/.bend/bin:${PATH}" BEND_NO_TELEMETRY=1
+# BEND_HOST: server/server.bend の待ち受け先。コンテナの外（-p で公開したポート）から届くよう 0.0.0.0 にする
+ENV PATH="/root/.bend/bin:${PATH}" BEND_NO_TELEMETRY=1 BEND_HOST=0.0.0.0
+EXPOSE 8080
 WORKDIR /work
 CMD ["bash"]
+
+# ネイティブビルド用（wslc build --target native ...）
+FROM slim AS native
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends clang libc6-dev \
+ && rm -rf /var/lib/apt/lists/*
+
+# 既定のターゲットは最後の段になるので、最小構成をもう一度置く
+FROM slim
