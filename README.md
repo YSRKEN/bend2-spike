@@ -10,6 +10,7 @@
 | `LAWS.bend` | サーバーの純粋な部分についての法則（仕様） |
 | `PROOF.bend` | 法則の証明。`bend PROOF.bend --verdict` で `ALL PROOFS CHECK` |
 | `zlib_crc_example.c` | 自作 effect から zlib を呼ぶ C 側の例 |
+| `container/Containerfile` | Bend だけを入れた最小のコンテナ（Debian slim、約 69 MB） |
 | `.claude/hooks/session-start.sh` | Bend 2.0.34 と Lean 4.34.0 を導入する SessionStart フック |
 | `.claude/hooks/bend-check.sh` | `.bend` の編集後に `--check-only` を走らせる PostToolUse フック |
 

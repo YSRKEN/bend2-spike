@@ -1,0 +1,21 @@
+# Bend 2 を試すための最小構成（実行と --check-only まで。ネイティブビルドと --verdict は含まない）
+# bend は glibc に動的リンクしているので、musl の Alpine では動かない。Debian slim を使う。
+FROM debian:bookworm-slim
+
+ARG BEND_VER=2.0.34
+ARG BEND_SHA=78106a97af242429dcc057258eb8d10f69cddebcd5e263022185a52d003e09bf
+
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends curl ca-certificates \
+ && curl -fsSL -o /tmp/bend.tgz "https://github.com/bendlang/bend/releases/download/v${BEND_VER}/bend-${BEND_VER}-linux-x64.tar.gz" \
+ && echo "${BEND_SHA}  /tmp/bend.tgz" | sha256sum -c - \
+ && mkdir -p /root/.bend/bin \
+ && tar -xzf /tmp/bend.tgz -C /tmp \
+ && mv /tmp/bend/bend2 /tmp/bend/guide /root/.bend/ \
+ && mv /tmp/bend/bin/bend /root/.bend/bin/bend \
+ && rm -rf /tmp/bend /tmp/bend.tgz \
+ && apt-get purge -y curl && apt-get autoremove -y && rm -rf /var/lib/apt/lists/*
+
+ENV PATH="/root/.bend/bin:${PATH}" BEND_NO_TELEMETRY=1
+WORKDIR /work
+CMD ["bash"]

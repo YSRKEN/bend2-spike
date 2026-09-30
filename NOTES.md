@@ -156,6 +156,41 @@ Bend 2（v2.0.34）を Claude Code のクラウド VM で試して得た知見�
 - 【確認】リポジトリから起動した新しいセッションでは発火した。Edit ツールで `server.bend` の `7n` を `6n` にすると、直後に「PostToolUse:Edit hook blocking error from command: "bend --check-only": bend PROOF.bend --check-only が失敗（exit 1、…）」に続けて `Laws.hello_echo` の期待値不一致が返った。戻す Edit では出力なし。ハーネス上は block が「hook blocking error」と表示される。
 - 1 回の検査は 0.2〜0.6 秒【確認】。`PROOF.bend` も検査するので、編集ごとに合計 1 秒前後かかる。
 
+## 10. Windows で試す別ルート: WSL コンテナ（wslc）
+
+「WSL なし」ではないが、「Linux ディストリビューションも Docker も入れずに試したい」場合の候補。
+
+- 【文書】`wslc.exe` は WSL 同梱のコンテナ CLI。別のエンジンは不要で、WSL 2.9.3 以上が要る。コンテナは WSL 2 の Linux カーネルの上で動く。
+  出典: Microsoft Learn「Get started with WSL container」 https://learn.microsoft.com/en-us/windows/wsl/tutorials/wsl-containers （本文取得済み、2026-09-29 更新）
+- 抜粋のみ（本文未取得）: endjin の記事 https://endjin.com/blog/trying-out-wsl-containers によると、Docker Compose や、WSL ディストリビューションの中から wslc を使う場合には制約がある。
+- 【未確認】ディストリビューションなしで wslc が使えるか、wslc 上で Bend が動くか、GPU をコンテナから使えるか。この環境には wslc がないので試していない。
+
+### 重さの内訳【確認】（クラウド VM で測定）
+
+| 部品 | 大きさ | 要る場面 |
+|---|---|---|
+| bend 本体（`bin/bend`） | 91 MB | 常に。依存は glibc（libc / libpthread / libdl / libm）だけ |
+| clang 18 一式（clang-18、libllvm18 など 4 パッケージ） | 約 197 MB（dpkg の Installed-Size の合計） | ネイティブビルド（`-o`）のときだけ |
+| Lean 4.34.0 のツールチェーン | 2.9 GB | `--verdict` のときだけ |
+| ベースイメージ（`docker image inspect` の Size） | ubuntu:24.04 約 30 MB、debian:bookworm-slim 約 28 MB、alpine:3.20 約 3.6 MB | ― |
+
+- 重いのは Ubuntu ではなく Lean。ベースイメージの差は数 MB。
+- 【確認】`~/.bend` だけを debian:bookworm-slim に入れると、`bend hello.bend`（実行）と `--check-only`（証明の検査）は clang なしで動いた。`-o` は「bend needs clang 14 or newer to build binaries」で止まる。
+- 【確認】alpine:3.20 では `exec /root/.bend/bin/bend: no such file or directory`。bend は glibc にリンクしているので、musl の Alpine では動かない。
+
+### 最小構成の Containerfile（`container/Containerfile`）
+
+debian:bookworm-slim に bend だけを入れる（SHA256 照合つき）。実行と `--check-only` までで、ネイティブビルドと `--verdict` は含まない。
+
+- 【確認】クラウド VM の Docker でビルドし、`docker image inspect` で約 69 MB。コンテナ内で `bend version`、`bend PROOF.bend --check-only`、`bend server.bend --check-only` が通った。
+- 【確認】クラウド VM でのビルドでは、プロキシの CA 証明書がコンテナ内にないため curl が終了コード 60 で止まった。確認用に限って CA を足した派生版でビルドした。公開した Containerfile には CA の記述はない（手元の Windows では不要の想定）。
+- 【未確認】wslc でのビルドと実行。想定手順:
+  ```powershell
+  wslc build -t bend2-slim -f container/Containerfile container
+  wslc run --rm -it -v ${PWD}:/work bend2-slim
+  ```
+  `-v` や `-f` を wslc が受け付けるかは確かめていない。
+
 ## 付録: スライドの PDF 化（`docs/bend2-spike-slides.pdf`）
 
 - 【確認】Playwright の Chromium は Google Fonts を読み込めなかった（`document.fonts` が空）。プロキシを指定しても同じ。curl（プロキシ経由で通る）で CSS と woff2 を落とし、ローカルの `@font-face` にすると読み込めた。CSS 内の `url()` は CSS ファイルからの相対パスになる点に注意。
