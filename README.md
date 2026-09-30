@@ -4,6 +4,7 @@
 
 | ファイル | 内容 |
 |---|---|
+| `docs/bend2-spike-slides.pdf` | 検証の解説スライド（15 枚、PDF） |
 | `NOTES.md` | 環境構築・言語の落とし穴・証明の書き方・検証方法などの知見 |
 | `server.bend` | 小さな HTTP サーバー（`/`、`/hello/<name>`、`/pow2/<d>`、404） |
 | `LAWS.bend` | サーバーの純粋な部分についての法則（仕様） |

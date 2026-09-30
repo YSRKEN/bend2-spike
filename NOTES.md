@@ -156,6 +156,11 @@ Bend 2（v2.0.34）を Claude Code のクラウド VM で試して得た知見�
 - 【確認】リポジトリから起動した新しいセッションでは発火した。Edit ツールで `server.bend` の `7n` を `6n` にすると、直後に「PostToolUse:Edit hook blocking error from command: "bend --check-only": bend PROOF.bend --check-only が失敗（exit 1、…）」に続けて `Laws.hello_echo` の期待値不一致が返った。戻す Edit では出力なし。ハーネス上は block が「hook blocking error」と表示される。
 - 1 回の検査は 0.2〜0.6 秒【確認】。`PROOF.bend` も検査するので、編集ごとに合計 1 秒前後かかる。
 
+## 付録: スライドの PDF 化（`docs/bend2-spike-slides.pdf`）
+
+- 【確認】Playwright の Chromium は Google Fonts を読み込めなかった（`document.fonts` が空）。プロキシを指定しても同じ。curl（プロキシ経由で通る）で CSS と woff2 を落とし、ローカルの `@font-face` にすると読み込めた。CSS 内の `url()` は CSS ファイルからの相対パスになる点に注意。
+- 【確認】JetBrains Mono は合字で `++` や `==` を 1 つの記号に置き換えて描画する。Bend のコードが別物に見えるので、合字のない IBM Plex Mono に替えた。
+
 ## 9. スキル・フックにするときの候補（案）
 
 - **SessionStart フック**: 7 章のとおり作成済み。
