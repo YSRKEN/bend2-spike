@@ -112,7 +112,7 @@ Base にある補題は `Equal.cong`・`Equal.sym`・`Equal.trans` などにほ�
 | `sort_sorted` | `sort` の出力は昇順に並んでいる |
 | `sort_perm` | どの値 x も、`sort` の出力の中に、入力の木の葉と同じ回数だけ現れる（並べ替えである） |
 
-`bend PROOF.bend` は ALL PROOFS CHECK。`--verdict` は、手元のコンテナに Lean が無いので走らせていない（未確認）。
+`bend PROOF.bend --check-only` と `--verdict` の両方が ALL PROOFS CHECK（`--verdict` は Windows の Lean 入りのイメージで確認）。
 補題は 9 個で、PROOF.bend は 146 行になった。比較には `proof_insertion_sort` の `LE`・`le_case`（どちらが小さいかの証拠を返す比較）を
 出典を書いて借りた。
 

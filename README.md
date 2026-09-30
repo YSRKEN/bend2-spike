@@ -83,7 +83,14 @@ bend PROOF.bend --verdict       # Lean で証明済みのカーネルによる�
 ```
 
 `LAWS.bend` を単体で検査すると、証明の無い法則が未解決として扱われ、必ず失敗します。検査は `PROOF.bend` に対して行います。
-コンテナには Lean を入れていないので、`--verdict` は Linux で行ってください（導入は [docs/environments.md](docs/environments.md)）。
+Windows では、Lean 入りのイメージを作ると `--verdict` も使えます（約 3.4 GB、初回のビルドは約 2 分）。
+
+```powershell
+wslc build -t bend2-verdict --target verdict -f container/Containerfile container
+wslc run --rm -v ${PWD}:/work -w /work/server bend2-verdict bend PROOF.bend --verdict
+```
+
+Linux での Lean の導入は [docs/environments.md](docs/environments.md) にあります。
 
 ## もっと知るには
 

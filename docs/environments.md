@@ -14,9 +14,9 @@ Linux では公式インストーラをそのまま使い、Windows では WSL �
 | CPU | Intel Xeon Processor @ 2.10GHz（`lscpu` の表記。KVM 上の仮想 CPU、1 ソケット 4 コア、1 コア 1 スレッド） | AMD Ryzen 5 3600（6 コア 12 スレッド、定格 3.6 GHz） |
 | 使える CPU | 4（`nproc`）。cgroup による CPU の上限はなし（`cpu.cfs_quota_us` が -1） | コンテナから 12（`nproc`） |
 | メモリ | 約 15.7 GiB（`MemTotal` 16,480,972 kB）、スワップなし。シェルのプロセスには cgroup で約 13.4 GiB（14,345,035,776 バイト）の上限 | 64 GB。コンテナから見えるのは約 31 GiB（WSL の既定で、機のメモリの半分と推定） |
-| GPU | なし（`nvidia-smi` が無い） | NVIDIA GeForce RTX 5060 Ti。ただしコンテナからは使っていない（使えるかは未確認） |
+| GPU | なし（`nvidia-smi` が無い） | NVIDIA GeForce RTX 5060 Ti。`--gpus all` でコンテナから見える（[gpu.md](gpu.md)） |
 | clang | 18.1.3 | 14.0.6（`--target native` のイメージ） |
-| Lean | 4.34.0 | なし |
+| Lean | 4.34.0 | 4.34.0（`--target verdict` のイメージ） |
 
 クラウド環境はセッションごとに割り当てが変わりうる。Linux の列のうち、OS の版と clang は処理時間を測った 2026-09-30 のセッションの値。
 カーネルの版・CPU・使える CPU・メモリ・GPU は、同じ 2026-09-30 に別のセッションで調べた値（`uname`、`lscpu`、`nproc`、`free -h`、`/proc/meminfo`、
@@ -86,21 +86,33 @@ https://learn.microsoft.com/en-us/windows/wsl/tutorials/wsl-containers 、本文
   登録されていない状態は未確認。
 - **Docker Compose や、WSL ディストリビューションの中から wslc を使う場合には制約がある。** endjin の記事
   https://endjin.com/blog/trying-out-wsl-containers の抜粋による（本文は未取得）。
-- **GPU をコンテナから使えるかは未確認。** `wslc run` には `--gpus` オプションがある。
+- **GPU はコンテナから見える。** `wslc run --gpus all` で `nvidia-smi` が通った。ただし bend の GPU 実行には制限がある（[gpu.md](gpu.md)）。
 
-### コンテナは 2 種類作れる: 最小構成と、clang 入り
+### コンテナは 4 種類作れる: 最小構成、clang 入り、Lean 入り、GPU 用
 
 `container/Containerfile` は debian:bookworm-slim に bend を入れる（SHA256 の照合つき）。多段にしてあり、`--target` を付けないと
-最小構成、`--target native` を付けると clang 入りになる。どちらにも Lean は入れていないので、`--verdict` は Linux で行う。
+最小構成、`--target native` を付けると clang 入り、`--target verdict` を付けると Lean 入りになる。
 GPU 用の `--target gpu` もあり、使い方と制限は [gpu.md](gpu.md) にある。
 
 | イメージ | 入っているもの | `wslc image list` での大きさ | 初回のビルド |
 |---|---|---|---|
 | 最小構成（例: `bend2-slim`） | bend | 179 MB | （未計測） |
 | `--target native`（例: `bend2-native`） | bend、clang 14.0.6 | 565 MB | 40 秒 |
+| `--target verdict`（例: `bend2-verdict`） | bend、Lean 4.34.0（elan で導入）、ビルド済みのカーネル | 3.35 GB | 127 秒 |
 | `--target gpu`（例: `bend2-gpu`） | bend、clang 19.1.1、CUDA 12.9 の NVRTC と cuda.h、libomp。ベースは nvidia/cuda の Ubuntu 24.04 | 1.5 GB | 92 秒（libomp を足す前の版） |
 
 最小構成で `--check-only` を 1 回走らせると、コンテナの起動を含めて約 0.8 秒かかる。
+
+### Lean 入りのイメージでは、カーネルをビルドした状態で持っておく
+
+`--target verdict` は、最小構成に elan で Lean v4.34.0 を入れ、小さなファイルに `--verdict` を 1 回かけて、カーネル
+（`~/.bend/bendtt/<ハッシュ>/`）をビルドした状態で保存する。こうしておくと、コンテナを起こすたびの `--verdict` が
+`server/` で 0.55 秒、`sort/` で 0.28 秒で済む。カーネルが無い状態から作ると 32 秒かかった。
+
+bend は Lean を PATH から探さない。`~/.elan/toolchains/leanprover--lean4---v4.34.0/bin` の `lean` と `leanc` を直接呼ぶ
+（bend 本体の JS を読んで確かめた）。PATH から elan を外してもカーネルを作り直せたのはこのためで、`~/.elan` ごと隠すと
+`Error: the kernel did not build (lean: Executable not found in $PATH: "lean"); --verdict needs Lean v4.34.0 ...` で失敗した。
+Lean を別の場所に置くなら、ビルドしたカーネルを環境変数 `BENDTT` で指せばよい（エラー文による。未確認）。
 
 同じ最小構成を、クラウド環境の Docker で作ると `docker image inspect` の Size は約 69 MB だった。wslc の 179 MB と違うのは、
 圧縮後か展開後かといった数え方の違いだと推測している（未確認）。
