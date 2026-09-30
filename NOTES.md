@@ -158,7 +158,9 @@ Bend 2（v2.0.34）を Claude Code のクラウド VM で試して得た知見�
 
 ## 10. Windows で試す別ルート: WSL コンテナ（wslc）
 
-「WSL なし」ではないが、「Linux ディストリビューションも Docker も入れずに試したい」場合の候補。
+当初は「WSL を使わない」を条件にしていたが、2026-09-30 に撤回した。以後、wslc は Windows で Bend を試す正式な選択肢として扱う（Docker も Linux ディストリビューションの手動管理も要らない）。
+
+- 【確認】Windows 10 でも wslc で Bend が動いた。検索結果の抜粋（Phoronix など）では「Windows 11」とされていた。
 
 - 【文書】`wslc.exe` は WSL 同梱のコンテナ CLI。別のエンジンは不要で、WSL 2.9.3 以上が要る。コンテナは WSL 2 の Linux カーネルの上で動く。
   出典: Microsoft Learn「Get started with WSL container」 https://learn.microsoft.com/en-us/windows/wsl/tutorials/wsl-containers （本文取得済み、2026-09-29 更新）
@@ -193,7 +195,7 @@ debian:bookworm-slim に bend だけを入れる（SHA256 照合つき）。実�
   wslc run --rm -it bend2-slim                                    # 対話シェルに入れる。bend guide も表示
   ```
   - `wslc image list` での大きさは 179 MB。クラウド VM の `docker image inspect` の Size（約 69 MB）とは値が違う。何を数えているか（圧縮後か展開後か）の違いと推測しているが【未確認】。
-  - 【未確認】WSL 本体の版（`wsl --version`）、ディストリビューションを入れているかどうか、ビルドの所要時間。
+  - 【未確認】ディストリビューションを入れているかどうか、ビルドの所要時間。
 
 ## 付録: スライドの PDF 化（`docs/bend2-spike-slides.pdf`）
 
