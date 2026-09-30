@@ -1,3 +1,6 @@
 # ネイティブビルドの生成物（cd server && bend server.bend -o server）
 /server/server
 *.o
+
+# bend web/index.html -o web/dist の出力
+/web/dist/

@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bend Mandelbrot</title>
+<style>
+  body { margin: 16px; font-family: system-ui, sans-serif; background: #111; color: #ddd; }
+  canvas { width: 100%; max-width: 640px; cursor: zoom-in; display: block; }
+</style>
+</head>
+<body>
+<canvas id="view" width="480" height="360"></canvas>
+<p>
+  反復 <select id="iters"><option>64</option><option selected>256</option><option>1024</option></select>
+  <button id="reset">最初に戻す</button>
+</p>
+<p id="info"></p>
+<script type="module" src="./app.js"></script>
+</body>
+</html>
