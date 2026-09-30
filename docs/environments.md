@@ -1,0 +1,105 @@
+# Bend 2 を動かす環境
+
+Bend 2 には Windows のネイティブ版が無い。公式インストーラは Windows で `Bend needs Linux, macOS or WSL.` を出して止まり、
+配布物も Linux と macOS（arm64・x64）用だけだった。この検証では、次の 2 つの環境で動かした。
+
+- **Linux**: Claude Code のクラウド環境（当時は Ubuntu 24.04.4 / x86_64 / 4 コア / GPU なし / clang 18.1.3）。公式インストーラをそのまま使った
+- **Windows**: WSL に同梱のコンテナ CLI（wslc）で、Bend を入れたコンテナを動かした（Windows 10 上の wslc 3.0.1.0、コンテナから見える CPU は 12）
+
+手順だけ知りたいなら README の「動かし方」で足りる。この文書は、その手順の裏付けと、選択の理由をまとめたもの。
+特に断りのない記述は、実際に動かして確かめたこと。ガイドなどの記述だけに基づくものには「（文書のみ）」、
+確かめていないものには「（未確認）」と書いた。
+
+## 何が要るかは、やりたいことで決まる
+
+| やりたいこと | 要るもの | 大きさ |
+|---|---|---|
+| 実行する（`bend x.bend`）、証明を検査する（`--check-only`） | bend 本体だけ（依存は glibc のみ） | 91 MB |
+| ネイティブビルドする（`bend x.bend -o x`） | 上に加えて clang 14 以上 | clang 一式で約 197 MB |
+| Lean で証明を再検査する（`--verdict`） | 上に加えて Lean v4.34.0 | 2.9 GB |
+
+重いのは Lean で、OS の違いではない。ベースイメージの差は数 MB しかない（ubuntu:24.04 が約 30 MB、
+debian:bookworm-slim が約 28 MB）。大きさはクラウド環境で `dpkg` や `docker image inspect` から測った。
+
+## Linux: 公式インストーラがそのまま使える
+
+```sh
+curl -fsSL https://bend-lang.com/install.sh | sh
+export PATH="$HOME/.bend/bin:$PATH" BEND_NO_TELEMETRY=1
+```
+
+実行する前にスクリプトの中身を読み、linux-x64 版の SHA256（`78106a97af242429dcc057258eb8d10f69cddebcd5e263022185a52d003e09bf`）が
+一致することを確かめた。公式インストーラは最新版を入れるので、版を固定したいときは、同じ手順（tarball の取得、SHA256 の照合、
+`~/.bend` への配置）を自分で行う。このリポジトリのフック（`.claude/hooks/session-start.sh`）はそうしている。
+
+`BEND_NO_TELEMETRY=1` を付けておくと、`bend` の初回の呼び出しが速くなる。付けないと 8 秒かかり、付けると 0.2 秒未満だった。
+bend が 1 日 1 回行う更新の確認の通信が原因と推測しているが、切り分けてはいない。
+
+### clang は 14 以上。`!` 付きの並列呼び出しには 19 以上とされる
+
+ガイドの要件は「clang 14+; 19+ with `!`」（文書のみ）。実際には clang 18 でも、`!` 付きのビルドを含めて通った
+（GPU が無いので `!` は CPU で走った）。19 が必要になる条件は未確認。Windows のコンテナの clang 14 でも、
+`server.bend` のネイティブビルドは通った。
+
+### `--verdict` には Lean v4.34.0 を入れる
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh -o elan-init.sh
+sh elan-init.sh -y --default-toolchain leanprover/lean4:v4.34.0
+export PATH="$HOME/.elan/bin:$PATH"
+```
+
+初回の `--verdict` はカーネルをビルドするので約 27 秒かかる（`~/.bend/bendtt` ができる）。2 回目以降は 0.2〜0.4 秒。
+
+### musl の Alpine では動かない
+
+bend は glibc に動的リンクしている。alpine:3.20 では `exec /root/.bend/bin/bend: no such file or directory` で起動しなかった。
+
+## Windows: wslc のコンテナで動かす
+
+wslc は WSL に同梱のコンテナ CLI で、別のコンテナエンジンを入れなくても使える。WSL 2.9.3 以上が要り、コンテナは WSL 2 の
+Linux カーネルの上で動く（文書のみ。Microsoft Learn「Get started with WSL container」
+https://learn.microsoft.com/en-us/windows/wsl/tutorials/wsl-containers 、本文取得済み、2026-09-29 更新の版）。
+
+確かめたことは次のとおり。
+
+- **Windows 10 でも動いた。** 検索結果の抜粋（Phoronix など）では、対象は Windows 11 とされていた。
+- **一般の Linux ディストリビューションが無くても動いた。** 確かめた機の WSL に登録されていたのは Docker Desktop の内部用のもの
+  （`docker-desktop`）だけで、wslc で Bend を動かしている間も停止したままだった。ディストリビューションが 1 つも
+  登録されていない状態は未確認。
+- **Docker Compose や、WSL ディストリビューションの中から wslc を使う場合には制約がある。** endjin の記事
+  https://endjin.com/blog/trying-out-wsl-containers の抜粋による（本文は未取得）。
+- **GPU をコンテナから使えるかは未確認。** `wslc run` には `--gpus` オプションがある。
+
+### コンテナは 2 種類作れる: 最小構成と、clang 入り
+
+`container/Containerfile` は debian:bookworm-slim に bend を入れる（SHA256 の照合つき）。多段にしてあり、`--target` を付けないと
+最小構成、`--target native` を付けると clang 入りになる。どちらにも Lean は入れていないので、`--verdict` は Linux で行う。
+
+| イメージ | 入っているもの | `wslc image list` での大きさ | 初回のビルド |
+|---|---|---|---|
+| 最小構成（例: `bend2-slim`） | bend | 179 MB | （未計測） |
+| `--target native`（例: `bend2-native`） | bend、clang 14.0.6 | 565 MB | 40 秒 |
+
+最小構成で `--check-only` を 1 回走らせると、コンテナの起動を含めて約 0.8 秒かかる。
+
+同じ最小構成を、クラウド環境の Docker で作ると `docker image inspect` の Size は約 69 MB だった。wslc の 179 MB と違うのは、
+圧縮後か展開後かといった数え方の違いだと推測している（未確認）。
+
+### サーバーに Windows から接続するには、コンテナの中で 0.0.0.0 に待ち受ける
+
+コンテナの中で 127.0.0.1 に待ち受けると、`-p 8080:8080` でポートを公開しても Windows からは届かない
+（`curl` が終了コード 56 で切られる）。ポートの転送が、コンテナの 127.0.0.1 ではなく外側のアドレスに届くためだと推定している。
+
+そこで `server.bend` は待ち受け先を環境変数 `BEND_HOST` から読み（無ければ 127.0.0.1）、Containerfile で `BEND_HOST=0.0.0.0` を
+設定した。これで Windows の `curl.exe` から `/`・`/hello/Bend`・`/pow2/20`・404 がすべて期待どおりに返った。
+起動・接続・停止のコマンドは README の「動かし方」にある。
+
+### クラウド環境でコンテナを作るときは、プロキシの CA 証明書が要る
+
+Claude Code のクラウド環境の Docker でこの Containerfile を作ると、コンテナの中にプロキシの CA 証明書が無いため、
+curl が終了コード 60 で止まった。確認のときだけ CA を足した派生版で作った。公開している Containerfile には CA の記述を入れていない。
+
+---
+
+最終更新: 2026-09-30

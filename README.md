@@ -12,7 +12,7 @@ Linux（Claude Code のクラウド環境）と、Windows の WSL コンテナ�
 | `server/PROOF.bend` | 法則の証明。`bend PROOF.bend` が `ALL PROOFS CHECK` なら通過 |
 | `effects/zlib_crc_example.c` | 自作 effect から zlib を呼ぶ C 側の例 |
 | `container/Containerfile` | Bend を入れたコンテナ。既定は最小構成、`--target native` で clang 入り |
-| `NOTES.md` | 環境構築・言語の落とし穴・証明の書き方・検証の方法など、分かったことの記録 |
+| `docs/` | 分かったことの記録（下の「もっと知るには」） |
 | `docs/bend2-spike-slides.pdf` | 検証の解説スライド（15 枚。クラウド環境での初回の検証の時点） |
 | `.claude/hooks/` | Claude Code のフック（Bend の導入、`.bend` の編集後の検査） |
 
@@ -20,7 +20,7 @@ Linux（Claude Code のクラウド環境）と、Windows の WSL コンテナ�
 
 ### Linux
 
-Bend の導入は `NOTES.md` の 1 章を参照してください（公式インストーラ、Linux・macOS 用）。
+Bend の導入は [docs/environments.md](docs/environments.md) を参照してください（公式インストーラ、Linux・macOS 用）。
 
 ```sh
 cd server
@@ -53,11 +53,11 @@ curl.exe http://127.0.0.1:8080/hello/Bend
 wslc stop bend-server
 ```
 
-ネイティブビルドには clang 入りのイメージを使います（約 565 MB）。
+ネイティブビルドには clang 入りのイメージを使います（約 565 MB）。接続と停止は上と同じです。
 
 ```powershell
 wslc build -t bend2-native --target native -f container/Containerfile container
-wslc run --rm -p 8080:8080 -v ${PWD}:/work -w /work/server bend2-native sh -c "bend server.bend -o /tmp/server && /tmp/server"
+wslc run --rm --name bend-server -p 8080:8080 -v ${PWD}:/work -w /work/server bend2-native sh -c "bend server.bend -o /tmp/server && /tmp/server"
 ```
 
 ## 証明の検査
@@ -69,11 +69,13 @@ bend PROOF.bend --verdict       # Lean で証明済みのカーネルによる�
 ```
 
 `LAWS.bend` を単体で検査すると、証明の無い法則が未解決として扱われ、必ず失敗します。検査は `PROOF.bend` に対して行います。
-コンテナには Lean を入れていないので、`--verdict` は Linux で行ってください（導入は `NOTES.md` の 1 章）。
+コンテナには Lean を入れていないので、`--verdict` は Linux で行ってください（導入は [docs/environments.md](docs/environments.md)）。
 
 ## もっと知るには
 
-- 証明した法則と範囲外のもの: `NOTES.md` の 5 章
-- 書くときの落とし穴: 2 章（例: 重い純粋計算の最中は、ほかの接続がその計算の終わりまで待たされる）
-- 法則と証明の書き方、検証の方法: 3・4 章
-- Windows（wslc）: 10 章
+| 文書 | 読む人と中身 |
+|---|---|
+| [docs/language.md](docs/language.md) | Bend を書く人へ。つまずいたこと（例: 重い純粋計算の最中は、ほかの接続がその計算の終わりまで待たされる） |
+| [docs/proofs.md](docs/proofs.md) | 法則と証明を書く人へ。書き方のこつ、毎回の確かめ方、このサーバーで証明したこととしなかったこと |
+| [docs/environments.md](docs/environments.md) | 動かす環境を用意する人へ。Linux と Windows（wslc）、何にどれだけ容量が要るか |
+| [docs/claude-code.md](docs/claude-code.md) | このリポジトリを Claude Code で開発する人へ。フックの仕組みとクラウド環境の癖 |
