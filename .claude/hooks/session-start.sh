@@ -1,9 +1,17 @@
 #!/bin/bash
 # SessionStart フック: Bend 2 と Lean を入れ、--verdict 用のカーネルを事前ビルドする。
-# クラウドセッション（Claude Code on the web）でだけ動く。何度実行しても同じ状態になる。
+# クラウドセッション（Claude Code on the web）でだけ導入する。何度実行しても同じ状態になる。
+# クラウド以外では何も入れず、検査に使う wslc のイメージが無いときだけ知らせる。
 set -euo pipefail
 
 if [ "${CLAUDE_CODE_REMOTE:-}" != "true" ]; then
+  # bend が無く wslc がある（Windows）のに、検査用のイメージが無ければ知らせる（メッセージに " や \ は入れない）
+  image="${BEND_CHECK_IMAGE:-bend2-slim}"
+  if ! command -v bend >/dev/null 2>&1 && command -v wslc >/dev/null 2>&1 \
+     && ! wslc image inspect "$image" >/dev/null 2>&1; then
+    msg="wslc のイメージ $image が無いので、.bend の編集後と commit 前の証明の検査が動かない。リポジトリのルートで wslc build -t $image -f container/Containerfile container を実行する"
+    printf '{"systemMessage": "%s", "hookSpecificOutput": {"hookEventName": "SessionStart", "additionalContext": "%s"}}\n' "$msg" "$msg"
+  fi
   exit 0
 fi
 
