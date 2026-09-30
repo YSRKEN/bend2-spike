@@ -1,13 +1,16 @@
 # Bend 2 検証ノート
 
-Bend 2（v2.0.34）を Claude Code のクラウド VM で試して得た知見の記録。作業のたびに追記する。
-将来スキル（手順・規約）やフック（自動検査）へ移すことを想定し、節を分けてある。
+Bend 2（v2.0.34）を Claude Code のクラウド VM と、Windows の WSL コンテナ（wslc）で試して得た知見の記録。
+作業のたびに追記する。将来スキル（手順・規約）やフック（自動検査）へ移すことを想定し、節を分けてある。
 
 - 記録開始: 2026-09-30
-- 環境: Ubuntu 24.04.4 LTS / x86_64 / 4 コア / GPU なし / clang 18.1.3 / Lean 4.34.0
+- 環境（クラウド）: Ubuntu 24.04.4 LTS / x86_64 / 4 コア / GPU なし / clang 18.1.3 / Lean 4.34.0
+- 環境（Windows）: Windows 10 上の wslc 3.0.1.0。コンテナは debian:bookworm-slim（`container/Containerfile`）、
+  コンテナから見える CPU は 12（`nproc`）、clang は 14.0.6（`--target native` のとき）。Lean は入れていない
 - 一次情報: 同梱ガイド `~/.bend/guide/GUIDE.md`・`EFFECTS.md`（本文取得済み）、
   公式リポジトリ https://github.com/bendlang/bend（commit 0187512 を clone して読んだ）
-- 検証コード: このディレクトリの `server.bend` / `LAWS.bend` / `PROOF.bend`
+- 検証コード: `server/` の `server.bend`（実装）/ `LAWS.bend`（法則）/ `PROOF.bend`（証明）、
+  `effects/zlib_crc_example.c`（自作 effect の C 側の例）
 
 凡例: 【確認】= この環境で実行して確かめた / 【文書】= ガイド等の記述のみ / 【未確認】
 
@@ -49,7 +52,16 @@ Bend 2（v2.0.34）を Claude Code のクラウド VM で試して得た知見�
 - 【確認】自作 effect の C 側で zlib を include すると、ランタイムの `FAR` マクロとぶつかる → `#pragma push_macro("FAR")` / `#undef FAR` / `#pragma pop_macro("FAR")` で囲む。`io_cstr` の長さ引数は `u64*`（EFFECTS.md の例は `u32` と読める書き方だが、実物は u64）。
 - 【文書】C 側の effect には ABI の保証がない（「There is no ABI promise」）。Bend を更新するたびに作り直す。
 - 【確認】`bend x.bend`（インタプリタ）は effect の JS 側、`-o x` は C 側を使う。時刻などは両者で値の意味が違いうる。
-- 【確認】重い純粋計算（`/pow2/30`）の最中は、ほかの接続への応答が約 0.84 秒待たされた（1 回だけ測定）。ガイドの説明とは合わない印象がある。原因は【未確認】。
+- 重い純粋計算の最中は、ほかの接続への応答が、その計算が終わるまで待たされる。
+  - 【確認】クラウド VM で、`/pow2/30` の最中に約 0.84 秒待たされた（1 回だけ測定）。
+  - 【確認】Windows の wslc（ネイティブビルド、CPU 12）で再現した。`/pow2/30` を投げた 0.15 秒後に `/` を投げると、
+    `/` の応答は 1.40〜2.12 秒（5 回）。`/pow2/30` 単独は 2.36 秒、何もしていないときの `/` は 0.002〜0.010 秒。
+  - 【確認】`--threads 1` でも同じ形（`/pow2/28` の最中の `/` が 2.27〜2.90 秒、計算は 2.43〜3.07 秒）。
+    スレッド数によらないので、作業スレッドの取り合いではない。
+  - 【文書】ガイド（GUIDE.md の「A Bend program is a set of computations interleaved by one event loop, as in Node.js」の段落）:
+    各計算は次の効果に行き着くまで純粋な部分を（全コアで並列に）走らせ、ソケットなどで待つ計算だけが順番を譲る。
+    純粋な計算は途中で割り込まれないので、上の挙動はガイドどおり。以前「ガイドと合わない印象」と書いたのは誤り。
+  - 対処は、Node.js と同じく、計算を効果の間に小さく区切るか、別のプロセスに回すことだと考える。どちらも【未確認】。
 
 ## 3. 法則と証明の書き方（→ スキル化候補: 証明パターン集）
 
@@ -92,6 +104,8 @@ Bend 2（v2.0.34）を Claude Code のクラウド VM で試して得た知見�
 - `TCP.recv` を 1 回（4096 バイト）読むだけなので、リクエスト行が分割されて届く場合。
 - `/pow2` と 404 のルーティング。
 - メソッドの区別（GET 以外にも同じ応答を返す）。
+- パスのパーセントエンコードの復元。【確認】`/hello/%E4%B8%96%E7%95%8C` には `Hello, %E4%B8%96%E7%95%8C!` と返す。
+- 起動（`main` と待ち受け先 `BEND_HOST` の読み取り）。
 
 ## 6. 公式 demo（io_http_server）との比較で得たこと
 
@@ -126,7 +140,7 @@ Bend 2（v2.0.34）を Claude Code のクラウド VM で試して得た知見�
 - 【文書】スキルの説明によると、フック完了後のコンテナの状態はキャッシュされる。新しいセッションで実際に 54 秒かかるのか、キャッシュで短くなるのかは【未確認】（新しいセッションでの所要時間は測っていない）。
 - フックはリポジトリの既定ブランチに入れて初めて、以後のセッションで使われる。
 
-新しいセッションでの確認【確認】（2026-09-30、YSRKEN/bend2-spike の main `8f2f697` から起動した別セッション。報告はブランチ `claude/hook-check-report` の `report.md`）:
+新しいセッションでの確認【確認】（2026-09-30、YSRKEN/bend2-spike の main `8f2f697` から起動した別セッションの報告による）:
 - PATH の先頭に `~/.bend/bin:~/.elan/bin`、`BEND_NO_TELEMETRY=1` が入っていた（フックが `CLAUDE_ENV_FILE` に書く行と一致）。
 - bend 2.0.34、Lean 4.34.0、`~/.bend/bendtt` がそろっていた。
 - 追加の設定なしで `bend PROOF.bend --verdict` が `ALL PROOFS CHECK`、0.59 秒（カーネルのビルドは起きなかった）。
@@ -140,8 +154,13 @@ Bend 2（v2.0.34）を Claude Code のクラウド VM で試して得た知見�
 - 本体を編集したときも、同じディレクトリの `PROOF.bend` を追加で検査する。本体の変更で証明が壊れたことに、その場で気づける。
 - 失敗したら `{"decision": "block", "reason": ...}` で出力の先頭 25 行（1 行 400 文字まで）を Claude に返す。成功時は何も出さない。
 - bend が見つからなければ `systemMessage` で知らせて何もしない。
+- Windows（2026-09-30 追加）: bend が PATH に無く wslc があれば、`container/Containerfile` のイメージ
+  （既定 `bend2-slim`、環境変数 `BEND_CHECK_IMAGE` で変更）の中で検査する。プロジェクトのルートを `/work` に見せ、
+  編集したファイルのディレクトリで動かす。イメージが無ければ、作り方を `systemMessage` で知らせて何もしない。
+- 【確認】Windows の Git Bash には jq が無い。以前の版は入力を読めず、知らせも出さずに何もしていなかった。
+  jq が無ければ Python で JSON を読み書きする。クラウド（bend と jq がある）では以前と同じ処理を通る。
 
-パイプテスト結果【確認】（入力 JSON を直接流した）:
+パイプテスト結果【確認】（入力 JSON を直接流した。下の表はクラウド、その下は Windows）:
 | 入力 | 結果 |
 |---|---|
 | 正常な `server.bend` | 出力なし |
@@ -151,6 +170,17 @@ Bend 2（v2.0.34）を Claude Code のクラウド VM で試して得た知見�
 | 未定義の名前を使うファイル | block で `expected : a defined name` を返す |
 | bend が無い環境 | systemMessage のみ |
 
+| 入力（Windows、jq なし、wslc あり） | 結果 |
+|---|---|
+| 正常な `server/server.bend`（`\` 区切りのパス） | 出力なし（約 2.3 秒） |
+| `server/LAWS.bend` | `PROOF.bend` に振り替えて通過（約 1.3 秒） |
+| `.bend` 以外（`NOTES.md`） | 何もしない |
+| `/hello/` の切り取りを 6 文字にした写し（プロジェクトの外） | block で `PROOF.bend` の期待値の不一致を返す |
+| イメージが無い（`BEND_CHECK_IMAGE` に無い名前） | systemMessage で作り方を知らせる |
+| PATH に `bend` がある（偽の bend を置いた） | wslc ではなくその bend を呼ぶ（クラウドと同じ道） |
+
+- 【確認】Windows のセッションでも、Edit ツールで `server/server.bend` の `7n` を `6n` にすると、`Laws.hello_echo` の期待値不一致で block された。戻す Edit では出力なし。
+
 落とし穴:
 - 【確認】フックを作ったセッションでは、登録後に Edit しても発火しなかった。セッション開始時の作業ディレクトリが `/home/user` で、そこに `.claude/settings.json` がなかったためと考えられる（設定の監視は、開始時に設定ファイルがあったディレクトリだけが対象）。そのセッションで有効にするには `/hooks` を一度開くか、セッションを再起動する。
 - 【確認】リポジトリから起動した新しいセッションでは発火した。Edit ツールで `server.bend` の `7n` を `6n` にすると、直後に「PostToolUse:Edit hook blocking error from command: "bend --check-only": bend PROOF.bend --check-only が失敗（exit 1、…）」に続けて `Laws.hello_echo` の期待値不一致が返った。戻す Edit では出力なし。ハーネス上は block が「hook blocking error」と表示される。
@@ -158,15 +188,18 @@ Bend 2（v2.0.34）を Claude Code のクラウド VM で試して得た知見�
 
 ## 10. Windows で試す別ルート: WSL コンテナ（wslc）
 
-当初は「WSL を使わない」を条件にしていたが、2026-09-30 に撤回した。以後、wslc は Windows で Bend を試す正式な選択肢として扱う（Docker も Linux ディストリビューションの手動管理も要らない）。
+wslc は、Windows で Bend を試す選択肢として扱う（Docker も Linux ディストリビューションの手動管理も要らない）。
 
 - 【確認】Windows 10 でも wslc で Bend が動いた。検索結果の抜粋（Phoronix など）では「Windows 11」とされていた。
 
 - 【文書】`wslc.exe` は WSL 同梱のコンテナ CLI。別のエンジンは不要で、WSL 2.9.3 以上が要る。コンテナは WSL 2 の Linux カーネルの上で動く。
   出典: Microsoft Learn「Get started with WSL container」 https://learn.microsoft.com/en-us/windows/wsl/tutorials/wsl-containers （本文取得済み、2026-09-29 更新）
 - 抜粋のみ（本文未取得）: endjin の記事 https://endjin.com/blog/trying-out-wsl-containers によると、Docker Compose や、WSL ディストリビューションの中から wslc を使う場合には制約がある。
-- 【確認】wslc 上で Bend が動く（下の「最小構成の Containerfile」を参照）。
-- 【未確認】ディストリビューションなしで wslc が使えるか、GPU をコンテナから使えるか。
+- 【確認】wslc 上で Bend が動く（下の「Containerfile」を参照）。
+- 【確認】一般の Linux ディストリビューションが無くても wslc は動く。確かめた機の WSL に登録されていたのは
+  Docker Desktop の内部用のもの（`docker-desktop`）だけで、wslc で Bend を動かしている間も停止したままだった。
+  ディストリビューションが 1 つも登録されていない状態は【未確認】。
+- 【未確認】GPU をコンテナから使えるか（`wslc run --gpus` はある）。
 
 ### 重さの内訳【確認】（クラウド VM で測定）
 
@@ -181,13 +214,21 @@ Bend 2（v2.0.34）を Claude Code のクラウド VM で試して得た知見�
 - 【確認】`~/.bend` だけを debian:bookworm-slim に入れると、`bend hello.bend`（実行）と `--check-only`（証明の検査）は clang なしで動いた。`-o` は「bend needs clang 14 or newer to build binaries」で止まる。
 - 【確認】alpine:3.20 では `exec /root/.bend/bin/bend: no such file or directory`。bend は glibc にリンクしているので、musl の Alpine では動かない。
 
-### 最小構成の Containerfile（`container/Containerfile`）
+### Containerfile（`container/Containerfile`）
 
-debian:bookworm-slim に bend だけを入れる（SHA256 照合つき）。実行と `--check-only` までで、ネイティブビルドと `--verdict` は含まない。
+debian:bookworm-slim に bend だけを入れる（SHA256 照合つき）。既定は実行と `--check-only` まで。
+`--target native` で clang を足した版になり、ネイティブビルド（`-o`）もできる。どちらも `--verdict` は含まない。
+
+- 【確認】多段にした（2026-09-30）。最後の段を最小構成にしてあるので、`--target` なしで作ると多段にする前と同じイメージになる
+  （`BEND_HOST` と `EXPOSE` を足した版と比べて、多段にした後も同じイメージ ID）。wslc の build は `--target` を受け付ける。
+- 【確認】`--target native` は Debian の clang 14.0.6。`wslc image list` で 565 MB（最小構成は 179 MB）、初回のビルドは 40 秒。
+  clang 14 でも `server.bend` のネイティブビルドは通った。
+- 環境変数 `BEND_HOST=0.0.0.0` と `EXPOSE 8080` を設定してある（下の「HTTP サーバーに Windows から接続する」）。
 
 - 【確認】クラウド VM の Docker でビルドし、`docker image inspect` で約 69 MB。コンテナ内で `bend version`、`bend PROOF.bend --check-only`、`bend server.bend --check-only` が通った。
 - 【確認】クラウド VM でのビルドでは、プロキシの CA 証明書がコンテナ内にないため curl が終了コード 60 で止まった。確認用に限って CA を足した派生版でビルドした。公開した Containerfile には CA の記述はない（手元の Windows では不要の想定）。
-- 【確認】wslc でのビルドと実行（2026-09-30、Windows 上の wslc 3.0.1.0。報告された出力に基づく）:
+- 【確認】wslc でのビルドと実行（2026-09-30、Windows 上の wslc 3.0.1.0。報告された出力に基づく）。
+  ファイルを `server/` に移す前の構成での記録。今の構成では `-w /work/server` を足す（README の「動かし方」）:
   ```powershell
   wslc build -t bend2-slim -f container/Containerfile container   # 成功（-f が使える）
   wslc run --rm bend2-slim bend version                           # bend 2.0.34
@@ -195,7 +236,21 @@ debian:bookworm-slim に bend だけを入れる（SHA256 照合つき）。実�
   wslc run --rm -it bend2-slim                                    # 対話シェルに入れる。bend guide も表示
   ```
   - `wslc image list` での大きさは 179 MB。クラウド VM の `docker image inspect` の Size（約 69 MB）とは値が違う。何を数えているか（圧縮後か展開後か）の違いと推測しているが【未確認】。
-  - 【未確認】ディストリビューションを入れているかどうか、ビルドの所要時間。
+  - 【確認】最小構成で `--check-only` を 1 回走らせると、コンテナの起動を含めて約 0.8 秒。
+
+### HTTP サーバーに Windows から接続する
+
+- 【確認】コンテナの中で 127.0.0.1 に待ち受けると、`-p 8080:8080` で公開しても Windows からは届かない
+  （`curl` が終了コード 56 で切られる）。ポートの転送がコンテナの 127.0.0.1 ではなく外側のアドレスに届くためと推定する。
+- 【確認】0.0.0.0 に待ち受ければ届く。`server.bend` は待ち受け先を環境変数 `BEND_HOST` で受け取り（無ければ 127.0.0.1）、
+  Containerfile で `BEND_HOST=0.0.0.0` を設定した。Windows の `curl.exe` から `/`・`/hello/Bend`・`/pow2/20`・404 がすべて期待どおり。
+  ```powershell
+  wslc run --rm --name bend-server -p 8080:8080 -v ${PWD}:/work -w /work/server bend2-slim bend server.bend
+  # 以下は別の PowerShell で（上のコマンドはサーバーを止めるまで戻らない）
+  curl.exe http://127.0.0.1:8080/hello/Bend      # Hello, Bend!
+  wslc stop bend-server
+  ```
+- 【確認】`IO.get_env` はインタプリタ（JS 側）でもネイティブビルド（C 側）でも使えた。
 
 ## 付録: スライドの PDF 化（`docs/bend2-spike-slides.pdf`）
 
@@ -205,7 +260,7 @@ debian:bookworm-slim に bend だけを入れる（SHA256 照合つき）。実�
 ## 9. スキル・フックにするときの候補（案）
 
 - **SessionStart フック**: 7 章のとおり作成済み。
-- **編集後フック**: 8 章のとおり作成済み。
+- **編集後フック**: 8 章のとおり作成済み。Windows では wslc 経由で動く。
 - **コミット前フック**: `bend PROOF.bend --verdict` が `ALL PROOFS CHECK` でなければ止める。
 - **スキル「Bend の証明」**: 3 章と 4 章の手順（補題の作り方、書き換えの向き、壊して確かめる、前提が満たせることの確認）。
 - **スキル「Bend のサーバー・I/O」**: 2 章の落とし穴（IO.pass、Content-Length、リンク、FAR マクロ）。

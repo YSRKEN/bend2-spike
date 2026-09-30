@@ -1,22 +1,79 @@
-# Bend 2 検証メモ
+# Bend 2 検証
 
-[Bend 2](https://github.com/bendlang/bend)（v2.0.34）を Claude Code のクラウド環境（Ubuntu 24.04 / x86_64 / GPU なし）で試した記録です。
+[Bend 2](https://github.com/bendlang/bend)（v2.0.34）で、証明付きの小さな HTTP サーバーを書いて動かした記録です。
+Linux（Claude Code のクラウド環境）と、Windows の WSL コンテナ（wslc）の両方で動作を確かめました。
 
-| ファイル | 内容 |
+## 構成
+
+| パス | 内容 |
 |---|---|
-| `docs/bend2-spike-slides.pdf` | 検証の解説スライド（15 枚、PDF） |
-| `NOTES.md` | 環境構築・言語の落とし穴・証明の書き方・検証方法などの知見 |
-| `server.bend` | 小さな HTTP サーバー（`/`、`/hello/<name>`、`/pow2/<d>`、404） |
-| `LAWS.bend` | サーバーの純粋な部分についての法則（仕様） |
-| `PROOF.bend` | 法則の証明。`bend PROOF.bend --verdict` で `ALL PROOFS CHECK` |
-| `zlib_crc_example.c` | 自作 effect から zlib を呼ぶ C 側の例 |
-| `container/Containerfile` | Bend だけを入れた最小のコンテナ（Debian slim、約 69 MB） |
-| `.claude/hooks/session-start.sh` | Bend 2.0.34 と Lean 4.34.0 を導入する SessionStart フック |
-| `.claude/hooks/bend-check.sh` | `.bend` の編集後に `--check-only` を走らせる PostToolUse フック |
+| `server/server.bend` | 小さな HTTP サーバー（`/`、`/hello/<name>`、`/pow2/<d>`、それ以外は 404） |
+| `server/LAWS.bend` | サーバーの純粋な部分についての法則（人間が書く仕様） |
+| `server/PROOF.bend` | 法則の証明。`bend PROOF.bend` が `ALL PROOFS CHECK` なら通過 |
+| `effects/zlib_crc_example.c` | 自作 effect から zlib を呼ぶ C 側の例 |
+| `container/Containerfile` | Bend を入れたコンテナ。既定は最小構成、`--target native` で clang 入り |
+| `NOTES.md` | 環境構築・言語の落とし穴・証明の書き方・検証の方法など、分かったことの記録 |
+| `docs/bend2-spike-slides.pdf` | 検証の解説スライド（15 枚。クラウド環境での初回の検証の時点） |
+| `.claude/hooks/` | Claude Code のフック（Bend の導入、`.bend` の編集後の検査） |
 
 ## 動かし方
 
+### Linux
+
+Bend の導入は `NOTES.md` の 1 章を参照してください（公式インストーラ、Linux・macOS 用）。
+
 ```sh
-bend server.bend -o server && ./server      # http://127.0.0.1:8080
-bend PROOF.bend --verdict                   # 証明の検査（Lean v4.34.0 が必要）
+cd server
+bend server.bend                            # インタプリタで起動。http://127.0.0.1:8080
+bend server.bend -o server && ./server      # ネイティブビルド（clang 14 以上が必要）
 ```
+
+待ち受け先は環境変数 `BEND_HOST` で変えられます（既定は `127.0.0.1`）。
+
+### Windows（wslc）
+
+Bend には Windows 版がありません。WSL に同梱のコンテナ CLI `wslc`（WSL 2.9.3 以上）を使うと、
+Linux ディストリビューションや Docker を入れずに動かせます。PowerShell で、リポジトリのルートから実行します。
+
+```powershell
+# イメージを作る（最小構成。--check-only と実行まで）
+wslc build -t bend2-slim -f container/Containerfile container
+
+# 証明を検査する
+wslc run --rm -v ${PWD}:/work -w /work/server bend2-slim bend PROOF.bend --check-only
+
+# サーバーを起動する（止めるまで戻らない）
+wslc run --rm --name bend-server -p 8080:8080 -v ${PWD}:/work -w /work/server bend2-slim bend server.bend
+```
+
+サーバーを起動したまま、別の PowerShell から接続し、終わったら止めます。
+
+```powershell
+curl.exe http://127.0.0.1:8080/hello/Bend
+wslc stop bend-server
+```
+
+ネイティブビルドには clang 入りのイメージを使います（約 565 MB）。
+
+```powershell
+wslc build -t bend2-native --target native -f container/Containerfile container
+wslc run --rm -p 8080:8080 -v ${PWD}:/work -w /work/server bend2-native sh -c "bend server.bend -o /tmp/server && /tmp/server"
+```
+
+## 証明の検査
+
+```sh
+cd server
+bend PROOF.bend --check-only    # 型検査による証明の検査
+bend PROOF.bend --verdict       # Lean で証明済みのカーネルによる再検査（Lean v4.34.0 が必要）
+```
+
+`LAWS.bend` を単体で検査すると、証明の無い法則が未解決として扱われ、必ず失敗します。検査は `PROOF.bend` に対して行います。
+コンテナには Lean を入れていないので、`--verdict` は Linux で行ってください（導入は `NOTES.md` の 1 章）。
+
+## もっと知るには
+
+- 証明した法則と範囲外のもの: `NOTES.md` の 5 章
+- 書くときの落とし穴: 2 章（例: 重い純粋計算の最中は、ほかの接続がその計算の終わりまで待たされる）
+- 法則と証明の書き方、検証の方法: 3・4 章
+- Windows（wslc）: 10 章
