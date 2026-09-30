@@ -48,10 +48,42 @@ JS の number を F32 の引数に渡すと、関数の中の最初の演算で�
   （bend 本体の `cli_bundle` を読んで確かめた）。
 - 出力先を消さずにまとめ直すと、古い `chunk-*.js` が残る。`index.html` は新しいほうを指すので、動きには関わらない。
 
+## 画面のあるアプリ（App）も、受け皿を書けばブラウザで動く
+
+Bend の `App.run` は、ネイティブビルドでは X11（Linux）か Metal（macOS）のウィンドウを開く。JS に書き出すと、
+`Window.open` は `Window.open: no display (build a native binary ... and run it from a desktop session)` を返すだけの仮の実装になる
+（bend 2.0.34 の `effs/window_open.js`）。wslc のコンテナには WSLg の表示先（`DISPLAY`、`/tmp/.X11-unix`、`/mnt/wslg`）も無かった。
+
+そこで、`App.run` の代わりをブラウザで書いた（`web/app/host.js`）。`App{view, tick}` の 2 つの関数を毎コマ呼び、
+`view` が返す画像の 4 分木を canvas に塗り、キーとマウスの入力を `Event` の値にして `tick` に渡す。公式の demo
+`app_pong_game_2d` を、中身に手を入れずにこれで動かした（`web/pong/`）。
+
+```powershell
+bash web/pong/fetch.sh    # 公式の main.bend を commit を固定して取ってくる（Apache-2.0 なので、リポジトリには写していない）
+wslc run --rm -v ${PWD}:/work -w /work bend2-slim bend web/pong/index.html -o web/dist/pong
+```
+
+確かめたこと:
+
+- 動く。まとめた JS は 6.9 KB で、1 コマの計算と描画は 0.1〜0.3 ms だった。
+- 入力が効く。canvas に S と ↑ を送ると、左のパドルが下へ（y 座標 208 → 394）、右のパドルが上へ（208 → 22）動いた（canvas の画素を読んで確かめた）。
+- Esc で `tick` が `None` を返して終わり、始め直せる。
+
+受け皿は、公開された約束ではない次の 2 点に頼っている。bend を更新したら確かめ直す。
+
+- `view(state)` は `{$: "Tuple", fst: 次の状態, snd: 画像}` を返す。
+- `tick(events, state)` が返す IO は、「結果を受け取る関数」を渡すと結果を返す関数として書き出されている。`tick` が `IO.pure` だけで
+  書かれていれば、`Some{次の状態}` か `None` が返る。音や `IO.sleep` などの入出力を使う `tick` は、この受け皿では動かない。
+
+キーの番号は、ネイティブ版（`effs/window.c`）と同じく Mac の決まりに合わせた。文字キーは小文字の文字コード、矢印は 63232〜63235、
+Esc は 27 である。ブラウザの枠が画面に出ていないと `requestAnimationFrame` が止まり、そのあいだの入力は次のコマにまとめて届く。
+
 ## Artifact で公開したもの
 
 `web/` と同じ計算を、手書きの JS と速さを比べるボタン付きの 1 枚の HTML にして、claude.ai の Artifact として公開した。
 bend が書き出した JS のうち Bend 由来の部分（約 1 KB）を、ページにそのまま埋め込んでいる。上の表の「手書きの JS との速さ」はこのページで測った。
+
+pong も、キーの代わりに押せるボタン付きの 1 枚の HTML にして、Artifact として公開した。
 
 ---
 

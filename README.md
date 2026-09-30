@@ -13,7 +13,7 @@ Linux（Claude Code のクラウド環境）と、Windows の WSL コンテナ�
 | GPU はどれだけ速いか | mandelbrot（反復 4096 回）で CPU 12 スレッドの約 8 倍。ただし毎回約 1.7 秒の固定費がある。n-queens では CPU の 7 倍遅い | [docs/benchmarks.md](docs/benchmarks.md) |
 | 並列に走るソートの正しさを証明できるか | できた。parallel let で並列に走るマージソートについて、出力が整列済みで入力の並べ替えであることを証明した（補題 9 個、146 行）。ただし証明向きの比較のせいで遅い | [docs/proofs.md](docs/proofs.md) |
 | 重い計算の最中に、ほかの接続を待たせずに済むか | 済む。計算を区切って `IO.sleep(0)` で譲るか、子プロセスに回す。`IO.fork` では避けられない | [docs/language.md](docs/language.md) |
-| ブラウザで動くか | 動く。まとめた JS は 2.1 KB、速さは手書きの JS とほぼ同じで、値もネイティブ版と一致した | [docs/web.md](docs/web.md) |
+| ブラウザで動くか | 動く。まとめた JS は 2.1 KB、速さは手書きの JS とほぼ同じで、値もネイティブ版と一致した。画面のあるアプリも、`App.run` の代わりの受け皿を書けば動き、公式の pong が遊べた | [docs/web.md](docs/web.md) |
 
 ## 構成
 
@@ -27,7 +27,7 @@ Linux（Claude Code のクラウド環境）と、Windows の WSL コンテナ�
 | `bench/` | 速さの比較の題材（mandelbrot、n-queens。Bend と C の両方）と計測のスクリプト、生の結果 |
 | `concurrency/` | 重い計算の最中に接続を待たせない方法を比べるサーバーと、計測のスクリプト |
 | `sort/` | 並列マージソートと、その正しさ（整列と並べ替え）の法則・証明 |
-| `web/` | Bend で書いた mandelbrot をブラウザで描くページ |
+| `web/` | Bend で書いた mandelbrot をブラウザで描くページと、Bend の App（公式の pong）をブラウザで動かす受け皿 |
 | `docs/` | 分かったことの記録（下の「もっと知るには」） |
 | `docs/bend2-spike-slides.pdf` | 検証の解説スライド（15 枚。クラウド環境での初回の検証の時点） |
 | `.claude/hooks/` | Claude Code のフック（Bend の導入、`.bend` の編集後の検査、commit 前の証明と docs の検査） |

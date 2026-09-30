@@ -4,3 +4,4 @@
 
 # bend web/index.html -o web/dist の出力
 /web/dist/
+/web/pong/main.bend

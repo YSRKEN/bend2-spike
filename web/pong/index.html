@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bend Pong</title>
+<style>
+  body { margin: 16px; font-family: system-ui, sans-serif; background: #111; color: #ddd; }
+  canvas { width: 100%; max-width: 512px; image-rendering: pixelated; display: block; outline: 1px solid #333; }
+  canvas:focus { outline: 2px solid #fc0; }
+</style>
+</head>
+<body>
+<canvas id="field" width="512" height="512" tabindex="0"></canvas>
+<p>左は W / S、右は ↑ / ↓。Esc で終わる。 <button id="restart">もう一度</button></p>
+<p id="info"></p>
+<script type="module" src="./pong.js"></script>
+</body>
+</html>
