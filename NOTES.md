@@ -163,7 +163,8 @@ Bend 2（v2.0.34）を Claude Code のクラウド VM で試して得た知見�
 - 【文書】`wslc.exe` は WSL 同梱のコンテナ CLI。別のエンジンは不要で、WSL 2.9.3 以上が要る。コンテナは WSL 2 の Linux カーネルの上で動く。
   出典: Microsoft Learn「Get started with WSL container」 https://learn.microsoft.com/en-us/windows/wsl/tutorials/wsl-containers （本文取得済み、2026-09-29 更新）
 - 抜粋のみ（本文未取得）: endjin の記事 https://endjin.com/blog/trying-out-wsl-containers によると、Docker Compose や、WSL ディストリビューションの中から wslc を使う場合には制約がある。
-- 【未確認】ディストリビューションなしで wslc が使えるか、wslc 上で Bend が動くか、GPU をコンテナから使えるか。この環境には wslc がないので試していない。
+- 【確認】wslc 上で Bend が動く（下の「最小構成の Containerfile」を参照）。
+- 【未確認】ディストリビューションなしで wslc が使えるか、GPU をコンテナから使えるか。
 
 ### 重さの内訳【確認】（クラウド VM で測定）
 
@@ -184,12 +185,15 @@ debian:bookworm-slim に bend だけを入れる（SHA256 照合つき）。実�
 
 - 【確認】クラウド VM の Docker でビルドし、`docker image inspect` で約 69 MB。コンテナ内で `bend version`、`bend PROOF.bend --check-only`、`bend server.bend --check-only` が通った。
 - 【確認】クラウド VM でのビルドでは、プロキシの CA 証明書がコンテナ内にないため curl が終了コード 60 で止まった。確認用に限って CA を足した派生版でビルドした。公開した Containerfile には CA の記述はない（手元の Windows では不要の想定）。
-- 【未確認】wslc でのビルドと実行。想定手順:
+- 【確認】wslc でのビルドと実行（2026-09-30、Windows 上の wslc 3.0.1.0。報告された出力に基づく）:
   ```powershell
-  wslc build -t bend2-slim -f container/Containerfile container
-  wslc run --rm -it -v ${PWD}:/work bend2-slim
+  wslc build -t bend2-slim -f container/Containerfile container   # 成功（-f が使える）
+  wslc run --rm bend2-slim bend version                           # bend 2.0.34
+  wslc run --rm -v ${PWD}:/work bend2-slim bend PROOF.bend --check-only   # ALL PROOFS CHECK（Windows 側のフォルダを共有）
+  wslc run --rm -it bend2-slim                                    # 対話シェルに入れる。bend guide も表示
   ```
-  `-v` や `-f` を wslc が受け付けるかは確かめていない。
+  - `wslc image list` での大きさは 179 MB。クラウド VM の `docker image inspect` の Size（約 69 MB）とは値が違う。何を数えているか（圧縮後か展開後か）の違いと推測しているが【未確認】。
+  - 【未確認】WSL 本体の版（`wsl --version`）、ディストリビューションを入れているかどうか、ビルドの所要時間。
 
 ## 付録: スライドの PDF 化（`docs/bend2-spike-slides.pdf`）
 
