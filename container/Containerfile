@@ -2,6 +2,7 @@
 #
 #   既定（--target なし）: bend だけの最小構成。実行と --check-only まで
 #   --target native      : 上に clang を足したもの。ネイティブビルド（bend x.bend -o x）もできる
+#   --target gpu         : CUDA の NVRTC と clang 19 入り。`!` 付きの呼び出しを GPU で走らせる
 #
 # どちらも --verdict（Lean が要る）は含まない。
 # bend は glibc に動的リンクしているので、musl の Alpine では動かない。Debian slim を使う。
@@ -32,6 +33,23 @@ FROM slim AS native
 RUN apt-get update \
  && apt-get install -y --no-install-recommends clang libc6-dev \
  && rm -rf /var/lib/apt/lists/*
+
+# GPU ビルド用（wslc build --target gpu ...、実行は wslc run --gpus all ...）
+# bend は `!` 付きの呼び出しを含むプログラムを clang 19 以上と CUDA の NVRTC でビルドする。
+# RTX 50 系（compute capability 12.0）には CUDA 12.8 以降の NVRTC が要る。
+# cuda.h は cuda-cudart-dev に入っている（cuda-driver-dev には stubs の libcuda.so だけ）。
+# libcuda.so の実体は実行時に --gpus で持ち込まれるので、ビルド時のリンクには stubs を使う。
+# libomp は bench/ の C 版（OpenMP）を比較のためにビルドするときに使う。
+FROM nvidia/cuda:12.9.1-base-ubuntu24.04 AS gpu
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends clang-19 libc6-dev libomp-19-dev cuda-nvrtc-dev-12-9 cuda-cudart-dev-12-9 \
+ && rm -rf /var/lib/apt/lists/* \
+ && ln -s /usr/bin/clang-19 /usr/local/bin/clang
+COPY --from=slim /root/.bend /root/.bend
+ENV PATH="/root/.bend/bin:${PATH}" BEND_NO_TELEMETRY=1 BEND_HOST=0.0.0.0 CUDA_HOME=/usr/local/cuda \
+    LIBRARY_PATH=/usr/local/cuda/lib64/stubs
+WORKDIR /work
+CMD ["bash"]
 
 # 既定のターゲットは最後の段になるので、最小構成をもう一度置く
 FROM slim
