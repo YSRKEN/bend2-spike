@@ -5,7 +5,7 @@
 # 1. docs と実物の食い違い（docs-check.py）: 法則の一覧と docs/proofs.md の表、リンクとパスの実在
 # 2. 証明: .bend に変更（ステージ済み・未ステージ・未追跡）があるときだけ、各 PROOF.bend を --check-only で検査する。
 #    bend がそのまま使えて Lean もある環境（クラウド）と、wslc に Lean 入りのイメージ（bend2-verdict）がある環境（Windows）では
-#    --verdict も走らせる
+#    --verdict も走らせる。wslc なのに Lean 入りのイメージが無いときは、commit は止めずに警告を出す
 #
 # 検査するのは作業ツリーの中身（commit されるステージの中身とは限らない）。
 # 編集後フック（bend-check.sh）が拾えない、ファイルの移動などの変更を commit の前に拾うためのもの。
@@ -27,6 +27,7 @@ root=$(to_slash "${CLAUDE_PROJECT_DIR:-}")
 [ -n "$root" ] && [ -d "$root/.git" ] || exit 0
 
 report=""
+warn=""
 
 # ---- 1. docs と実物の食い違い ----
 py=""
@@ -49,8 +50,12 @@ if [ -n "$(git -C "$root" status --porcelain --untracked-files=all -- '*.bend' 2
     modes=("--check-only")
     if [ "$BEND_RUNNER" = native ] && command -v lean >/dev/null 2>&1; then
       modes+=("--verdict")
-    elif [ "$BEND_RUNNER" = wslc ] && wslc image inspect "$BEND_VERDICT_IMAGE" >/dev/null 2>&1; then
-      modes+=("--verdict")
+    elif [ "$BEND_RUNNER" = wslc ]; then
+      if wslc image inspect "$BEND_VERDICT_IMAGE" >/dev/null 2>&1; then
+        modes+=("--verdict")
+      else
+        warn="wslc のイメージ $BEND_VERDICT_IMAGE が無いので、commit 前の検査で --verdict（Lean のカーネルによる証明の再検査）を飛ばした。--check-only だけで commit する。リポジトリのルートで wslc build -t $BEND_VERDICT_IMAGE --target verdict -f container/Containerfile container を実行すると検査されるようになる（約 3.4 GB）"
+      fi
     fi
     while IFS= read -r proof; do
       dir=$(dirname "$proof")
@@ -71,7 +76,11 @@ if [ -n "$(git -C "$root" status --porcelain --untracked-files=all -- '*.bend' 2
 fi
 
 if [ -n "$report" ]; then
+  [ -n "$warn" ] && report+="$warn"$'\n'
   printf 'commit 前の検査で止めた（.claude/hooks/pre-commit-check.sh）。直してから commit し直す。\n\n%s' "$report" >&2
   exit 2
+fi
+if [ -n "$warn" ]; then
+  json_warn PreToolUse "$warn"
 fi
 exit 0

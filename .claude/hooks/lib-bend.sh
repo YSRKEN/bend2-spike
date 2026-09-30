@@ -22,6 +22,8 @@ if command -v jq >/dev/null 2>&1; then
   }
   json_msg() { jq -n --arg m "$1" '{systemMessage: $m}'; }
   json_block() { jq -n --arg r "$1" '{decision: "block", reason: $r}'; }
+  # json_warn <イベント名> <文>: 止めずに、利用者（systemMessage）と Claude（additionalContext）の両方に知らせる
+  json_warn() { jq -n --arg e "$1" --arg m "$2" '{systemMessage: $m, hookSpecificOutput: {hookEventName: $e, additionalContext: $m}}'; }
 else
   # 見つかっても起動できない Python（壊れたランチャーなど）は飛ばし、実際に動くものを使う
   BEND_PY=""
@@ -50,6 +52,9 @@ for path in sys.argv[1:]:
   }
   json_block() {
     "$BEND_PY" -c 'import json,sys; sys.stdout.buffer.write(json.dumps({"decision": "block", "reason": sys.argv[1]}, ensure_ascii=False).encode("utf-8"))' "$1"
+  }
+  json_warn() {
+    "$BEND_PY" -c 'import json,sys; sys.stdout.buffer.write(json.dumps({"systemMessage": sys.argv[2], "hookSpecificOutput": {"hookEventName": sys.argv[1], "additionalContext": sys.argv[2]}}, ensure_ascii=False).encode("utf-8"))' "$1" "$2"
   }
 fi
 

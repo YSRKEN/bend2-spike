@@ -66,7 +66,7 @@ bend の動かし方は環境で変わる。
   README と docs の相対リンクの先と、`server/server.bend` のように書いたリポジトリ内のパスが実在するか。
 - **証明**: `.bend` に変更（ステージ済み・未ステージ・未追跡のどれでも）があるときだけ、`PROOF.bend` を `--check-only` で検査する。
   bend がそのまま使えて Lean もある環境（クラウド）と、wslc に Lean 入りのイメージ `bend2-verdict`（`--target verdict` で作る）がある環境（Windows）では、
-  `--verdict` も走らせる。イメージの名前は環境変数 `BEND_VERDICT_IMAGE` で変えられる。イメージが無ければ `--verdict` は黙って飛ばす。
+  `--verdict` も走らせる。イメージの名前は環境変数 `BEND_VERDICT_IMAGE` で変えられる。イメージが無ければ、commit は止めずに `--verdict` を飛ばし、そのことを警告として出す（利用者には画面の警告、Claude には文脈として届く）。
 
 どちらの検査も、`.` で始まるフォルダ（`.git`、git の管理から外した作業用の `.scratch` など）の下にある `LAWS.bend`・`PROOF.bend` は見ない。
 公式の demo を手元に写して読むことがあり、それをリポジトリの法則として数えないためである。
