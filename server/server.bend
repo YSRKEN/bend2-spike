@@ -148,8 +148,22 @@ def serve(n: Nat, l: Listener) -> IO(Unit):
       IO.bind(Listener & Result<&1, &1, U32 & String, Socket>, Unit,
         TCP.accept(l), serve.got(l2 => serve(p, l2)))
 
-def main() -> IO(Unit):
+# ---- 起動（待ち受け先は環境変数 BEND_HOST。無ければ 127.0.0.1） ----
+# コンテナの外から届くには 0.0.0.0 が要る（container/Containerfile で設定する）
+
+def host.pick(r: Result<&1, &1, U32 & String, String>) -> String:
+  match r:
+    case Done{h}:
+      h
+    case Fail{e}:
+      "127.0.0.1"
+
+def listen(+host: String) -> IO(Unit):
   do IO<Unit>:
-    l : Listener <- IO.try(Listener, TCP.listen("127.0.0.1", 8080))
-    Unit <- IO.print("listening on http://127.0.0.1:8080")
+    l : Listener <- IO.try(Listener, TCP.listen(host, 8080))
+    Unit <- IO.print("listening on http://" ++ host ++ ":8080")
     serve(1000000n, l)
+
+def main() -> IO(Unit):
+  IO.bind(Result<&1, &1, U32 & String, String>, Unit,
+    IO.get_env("BEND_HOST"), r => listen(host.pick(r)))
