@@ -10,15 +10,18 @@ Linux では公式インストーラをそのまま使い、Windows では WSL �
 
 | 項目 | Linux（Claude Code のクラウド環境） | Windows（wslc のコンテナ） |
 |---|---|---|
-| OS | Ubuntu 24.04.4 LTS（x86_64） | Windows 10 上の wslc 3.0.1.0。コンテナは Debian 12（bookworm-slim）、WSL 2 のカーネル 6.18 |
-| CPU | 型番は未記録 | AMD Ryzen 5 3600（6 コア 12 スレッド、定格 3.6 GHz） |
-| 使える CPU | 4 コア | コンテナから 12（`nproc`） |
-| メモリ | 未記録 | 64 GB。コンテナから見えるのは約 31 GiB（WSL の既定で、機のメモリの半分と推定） |
-| GPU | なし | NVIDIA GeForce RTX 5060 Ti。ただしコンテナからは使っていない（使えるかは未確認） |
+| OS | Ubuntu 24.04.4 LTS（x86_64）、カーネル 6.18.44 | Windows 10 上の wslc 3.0.1.0。コンテナは Debian 12（bookworm-slim）、WSL 2 のカーネル 6.18 |
+| CPU | Intel Xeon Processor @ 2.10GHz（`lscpu` の表記。KVM 上の仮想 CPU、1 ソケット 4 コア、1 コア 1 スレッド） | AMD Ryzen 5 3600（6 コア 12 スレッド、定格 3.6 GHz） |
+| 使える CPU | 4（`nproc`）。cgroup による CPU の上限はなし（`cpu.cfs_quota_us` が -1） | コンテナから 12（`nproc`） |
+| メモリ | 約 15.7 GiB（`MemTotal` 16,480,972 kB）、スワップなし。シェルのプロセスには cgroup で約 13.4 GiB（14,345,035,776 バイト）の上限 | 64 GB。コンテナから見えるのは約 31 GiB（WSL の既定で、機のメモリの半分と推定） |
+| GPU | なし（`nvidia-smi` が無い） | NVIDIA GeForce RTX 5060 Ti。ただしコンテナからは使っていない（使えるかは未確認） |
 | clang | 18.1.3 | 14.0.6（`--target native` のイメージ） |
 | Lean | 4.34.0 | なし |
 
-クラウド環境はセッションごとに割り当てが変わりうる。上の値は 2026-09-30 の 1 回のセッションのもの。
+クラウド環境はセッションごとに割り当てが変わりうる。Linux の列のうち、OS と clang は処理時間を測った 2026-09-30 のセッションの値。
+CPU・使える CPU・メモリ・GPU は、同じ 2026-09-30 に別のセッションで調べた値（`lscpu`、`nproc`、`free -h`、`/proc/meminfo`、
+cgroup v1 の `memory.limit_in_bytes` と `cpu.cfs_quota_us`。cgroup v2 の `cpu.max`・`memory.max` は存在しなかった）で、
+処理時間を測ったときの割り当てと同じとは限らない。
 
 手順だけ知りたいなら README の「動かし方」で足りる。この文書は、その手順の裏付けと、選択の理由をまとめたもの。
 特に断りのない記述は、実際に動かして確かめたこと。ガイドなどの記述だけに基づくものには「（文書のみ）」、
