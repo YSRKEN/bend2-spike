@@ -1,0 +1,2 @@
+# wslc のコンテナ（Linux）で走らせるスクリプトは、Windows で checkout しても LF のままにする
+*.sh text eol=lf

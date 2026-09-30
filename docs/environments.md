@@ -92,11 +92,13 @@ https://learn.microsoft.com/en-us/windows/wsl/tutorials/wsl-containers 、本文
 
 `container/Containerfile` は debian:bookworm-slim に bend を入れる（SHA256 の照合つき）。多段にしてあり、`--target` を付けないと
 最小構成、`--target native` を付けると clang 入りになる。どちらにも Lean は入れていないので、`--verdict` は Linux で行う。
+GPU 用の `--target gpu` もあり、使い方と制限は [gpu.md](gpu.md) にある。
 
 | イメージ | 入っているもの | `wslc image list` での大きさ | 初回のビルド |
 |---|---|---|---|
 | 最小構成（例: `bend2-slim`） | bend | 179 MB | （未計測） |
 | `--target native`（例: `bend2-native`） | bend、clang 14.0.6 | 565 MB | 40 秒 |
+| `--target gpu`（例: `bend2-gpu`） | bend、clang 19.1.1、CUDA 12.9 の NVRTC と cuda.h、libomp。ベースは nvidia/cuda の Ubuntu 24.04 | 1.5 GB | 92 秒（libomp を足す前の版） |
 
 最小構成で `--check-only` を 1 回走らせると、コンテナの起動を含めて約 0.8 秒かかる。
 
@@ -119,4 +121,4 @@ curl が終了コード 60 で止まった。確認のときだけ CA を足し�
 
 ---
 
-最終更新: 2026-09-30
+最終更新: 2026-10-01
