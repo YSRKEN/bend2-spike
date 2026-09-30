@@ -1,16 +1,24 @@
 #!/bin/bash
 # SessionStart フック: Bend 2 と Lean を入れ、--verdict 用のカーネルを事前ビルドする。
 # クラウドセッション（Claude Code on the web）でだけ導入する。何度実行しても同じ状態になる。
-# クラウド以外では何も入れず、検査に使う wslc のイメージが無いときだけ知らせる。
+# クラウド以外では何も入れず、検査に使う wslc のイメージ（bend2-slim と、--verdict 用の bend2-verdict）が無いときだけ知らせる。
 set -euo pipefail
 
 if [ "${CLAUDE_CODE_REMOTE:-}" != "true" ]; then
   # bend が無く wslc がある（Windows）のに、検査用のイメージが無ければ知らせる（メッセージに " や \ は入れない）
-  image="${BEND_CHECK_IMAGE:-bend2-slim}"
-  if ! command -v bend >/dev/null 2>&1 && command -v wslc >/dev/null 2>&1 \
-     && ! wslc image inspect "$image" >/dev/null 2>&1; then
-    msg="wslc のイメージ $image が無いので、.bend の編集後と commit 前の証明の検査が動かない。リポジトリのルートで wslc build -t $image -f container/Containerfile container を実行する"
-    printf '{"systemMessage": "%s", "hookSpecificOutput": {"hookEventName": "SessionStart", "additionalContext": "%s"}}\n' "$msg" "$msg"
+  if ! command -v bend >/dev/null 2>&1 && command -v wslc >/dev/null 2>&1; then
+    image="${BEND_CHECK_IMAGE:-bend2-slim}"
+    verdict="${BEND_VERDICT_IMAGE:-bend2-verdict}"
+    msg=""
+    if ! wslc image inspect "$image" >/dev/null 2>&1; then
+      msg="wslc のイメージ $image が無いので、.bend の編集後と commit 前の証明の検査が動かない。リポジトリのルートで wslc build -t $image -f container/Containerfile container を実行する。"
+    fi
+    if ! wslc image inspect "$verdict" >/dev/null 2>&1; then
+      msg="${msg}wslc のイメージ $verdict が無いので、commit 前の検査で --verdict（Lean のカーネルによる証明の再検査）を飛ばす。リポジトリのルートで wslc build -t $verdict --target verdict -f container/Containerfile container を実行すると検査されるようになる（約 3.4 GB）。"
+    fi
+    if [ -n "$msg" ]; then
+      printf '{"systemMessage": "%s", "hookSpecificOutput": {"hookEventName": "SessionStart", "additionalContext": "%s"}}\n' "$msg" "$msg"
+    fi
   fi
   exit 0
 fi

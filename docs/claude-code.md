@@ -12,7 +12,7 @@ Bend そのものの話は [language.md](language.md) と [proofs.md](proofs.md)
 
 | フック | 動くとき | すること |
 |---|---|---|
-| `.claude/hooks/session-start.sh` | セッションを始めたとき | クラウド環境では Bend 2.0.34 と Lean 4.34.0 を入れ、PATH を通す。Windows では、検査に使う wslc のイメージが無ければ知らせる |
+| `.claude/hooks/session-start.sh` | セッションを始めたとき | クラウド環境では Bend 2.0.34 と Lean 4.34.0 を入れ、PATH を通す。Windows では、検査に使う wslc のイメージ（`bend2-slim`、`--verdict` 用の `bend2-verdict`）が無ければ知らせる |
 | `.claude/hooks/bend-check.sh` | `.bend` ファイルを Write・Edit したとき | `bend --check-only` で検査し、失敗したら Claude に差し戻す |
 | `.claude/hooks/pre-commit-check.sh` | `git commit` を含むコマンドを実行する直前 | 証明と、docs と実物の食い違いを検査し、落ちたら commit を止める |
 
