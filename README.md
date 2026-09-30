@@ -9,9 +9,10 @@ Linux（Claude Code のクラウド環境）と、Windows の WSL コンテナ�
 | 問い | 答え | 詳しく |
 |---|---|---|
 | Windows の GeForce で `!`（GPU 実行）は動くか | 公式の手順では動かない（WSL2 に concurrent managed access が無く、黙って CPU で走る）。生成した C の判定を 1 行外すと動き、答えも合う | [docs/gpu.md](docs/gpu.md) |
-| 「C 並みの速さ」は本当か | mandelbrot では C とほぼ同じ速さで、スレッド数にも同じように伸びる。n-queens では C の 3〜4 倍遅い | [docs/benchmarks.md](docs/benchmarks.md) |
+| 「C 並みの速さ」は本当か | mandelbrot では C とほぼ同じ速さで、スレッド数にも同じように伸びる。n-queens では C の 3〜4 倍遅く、仕事を均等に割らないとスレッド数に伸びない | [docs/benchmarks.md](docs/benchmarks.md) |
 | GPU はどれだけ速いか | mandelbrot（反復 4096 回）で CPU 12 スレッドの約 8 倍。ただし毎回約 1.7 秒の固定費がある。n-queens では CPU の 7 倍遅い | [docs/benchmarks.md](docs/benchmarks.md) |
 | 並列に走るソートの正しさを証明できるか | できた。parallel let で並列に走るマージソートについて、出力が整列済みで入力の並べ替えであることを証明した（補題 9 個、146 行）。ただし証明向きの比較のせいで遅い | [docs/proofs.md](docs/proofs.md) |
+| 重い計算の最中に、ほかの接続を待たせずに済むか | 済む。計算を区切って `IO.sleep(0)` で譲るか、子プロセスに回す。`IO.fork` では避けられない | [docs/language.md](docs/language.md) |
 | ブラウザで動くか | 動く。まとめた JS は 2.1 KB、速さは手書きの JS とほぼ同じで、値もネイティブ版と一致した | [docs/web.md](docs/web.md) |
 
 ## 構成
@@ -24,6 +25,7 @@ Linux（Claude Code のクラウド環境）と、Windows の WSL コンテナ�
 | `effects/zlib_crc_example.c` | 自作 effect から zlib を呼ぶ C 側の例 |
 | `container/Containerfile` | Bend を入れたコンテナ。既定は最小構成、`--target native` で clang 入り、`--target gpu` で CUDA 入り |
 | `bench/` | 速さの比較の題材（mandelbrot、n-queens。Bend と C の両方）と計測のスクリプト、生の結果 |
+| `concurrency/` | 重い計算の最中に接続を待たせない方法を比べるサーバーと、計測のスクリプト |
 | `sort/` | 並列マージソートと、その正しさ（整列と並べ替え）の法則・証明 |
 | `web/` | Bend で書いた mandelbrot をブラウザで描くページ |
 | `docs/` | 分かったことの記録（下の「もっと知るには」） |
