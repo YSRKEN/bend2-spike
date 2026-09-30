@@ -54,11 +54,16 @@ case ${1:-} in
     ;;
   nqueens)
     build nqueens
+    bend nqueens_split.bend -o /tmp/nqueens_split > /dev/null
+    bash build-wsl-gpu.sh nqueens_split.bend /tmp/nqueens_split-gpu > /dev/null
     for rep in 1 2; do
       for n in 13 14 15; do
         row nqueens "bend cpu1" "$n" /tmp/nqueens "$n" --gpu off --threads 1
         row nqueens "bend cpu12" "$n" /tmp/nqueens "$n" --gpu off
         row nqueens "bend gpu" "$n" /tmp/nqueens-gpu "$n" --gpu 1GB --threads 1
+        row nqueens "split cpu1" "$n" /tmp/nqueens_split "$n" --gpu off --threads 1
+        row nqueens "split cpu12" "$n" /tmp/nqueens_split "$n" --gpu off
+        row nqueens "split gpu" "$n" /tmp/nqueens_split-gpu "$n" --gpu 1GB --threads 1
         row nqueens "C cpu1" "$n" env OMP_NUM_THREADS=1 /tmp/nqueens-c "$n"
         row nqueens "C cpu12" "$n" env OMP_NUM_THREADS=12 /tmp/nqueens-c "$n"
       done
