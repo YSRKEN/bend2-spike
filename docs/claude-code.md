@@ -6,20 +6,23 @@ Bend そのものの話は [language.md](language.md) と [proofs.md](proofs.md)
 特に断りのない記述は、実際に動かして確かめたこと。ガイドなどの記述だけに基づくものには「（文書のみ）」、
 確かめていないものには「（未確認）」と書いた。
 
-## 2 つのフックが、Bend の導入と証明の検査を自動にしている
+## 3 つのフックが、Bend の導入と、証明・docs の検査を自動にしている
 
-どちらも `.claude/settings.json` に登録してある。
+どれも `.claude/settings.json` に登録してある。
 
 | フック | 動くとき | すること |
 |---|---|---|
-| `.claude/hooks/session-start.sh` | クラウド環境でセッションを始めたとき | Bend 2.0.34 と Lean 4.34.0 を入れ、PATH を通す |
+| `.claude/hooks/session-start.sh` | セッションを始めたとき | クラウド環境では Bend 2.0.34 と Lean 4.34.0 を入れ、PATH を通す。Windows では、検査に使う wslc のイメージが無ければ知らせる |
 | `.claude/hooks/bend-check.sh` | `.bend` ファイルを Write・Edit したとき | `bend --check-only` で検査し、失敗したら Claude に差し戻す |
+| `.claude/hooks/pre-commit-check.sh` | `git commit` を含むコマンドを実行する直前 | 証明と、docs と実物の食い違いを検査し、落ちたら commit を止める |
 
 フックが使われるのは、リポジトリの既定のブランチに入ってからのセッションだけ。
+bend の動かし方（クラウドは bend、Windows は wslc）と JSON の読み書きは、`.claude/hooks/lib-bend.sh` に共通の部品としてまとめてある。
 
 ### セッション開始のフック: クラウド環境で、版を固定して導入する
 
-クラウド環境（環境変数 `CLAUDE_CODE_REMOTE=true`）でだけ動き、それ以外では何もせずに終わる。
+導入するのはクラウド環境（環境変数 `CLAUDE_CODE_REMOTE=true`）でだけ。それ以外では何も入れず、bend が無く wslc があるのに
+検査用のイメージが無いときだけ、作り方を知らせる。
 クラウドのコンテナは回収されると `~/.bend`・`~/.elan` が消えるので、セッションのたびに入れ直す必要がある。そのためのフック。
 
 1. Bend 2.0.34 を入れる。公式インストーラは最新版を入れるので使わず、同じ手順（tarball の取得、SHA256 の照合、`~/.bend` への配置）を
@@ -54,6 +57,19 @@ bend の動かし方は環境で変わる。
 入力の JSON は jq で読み、jq が無ければ Python で読む。Windows の Git Bash には jq が無く、以前の版はこのせいで、知らせも出さずに
 何もしていなかった。
 
+### commit 前のフック: 編集後のフックが拾えない変更を、commit の前に拾う
+
+ファイルの移動のように Write・Edit を通らない変更では、編集後のフックは動かない。そこで `git commit` を含むコマンドの直前に、
+次の 2 つを検査する。落ちたら理由を返して commit を止める。
+
+- **docs と実物の食い違い**（`.claude/hooks/docs-check.py`）: `LAWS.bend` の法則と `docs/proofs.md` の法則の表が一致するか。
+  README と docs の相対リンクの先と、`server/server.bend` のように書いたリポジトリ内のパスが実在するか。
+- **証明**: `.bend` に変更（ステージ済み・未ステージ・未追跡のどれでも）があるときだけ、`PROOF.bend` を `--check-only` で検査する。
+  bend がそのまま使えて Lean もある環境（クラウド）では、`--verdict` も走らせる。
+
+検査するのは作業ツリーの中身で、実際に commit されるステージの中身とは限らない。commit と無関係なコマンドでは、
+入力に「commit」という文字が無いことだけを見てすぐに抜ける（Windows で 0.2 秒ほど）。検査するときは、Windows で 1〜4 秒かかった。
+
 ## フックが動かないときに確かめること
 
 - **フックを登録したそのセッション**: 登録した後に Edit しても動かなかった。セッションを始めた場所に `.claude/settings.json` が
@@ -79,8 +95,6 @@ bend の動かし方は環境で変わる。
 
 ## これから作るとよさそうなもの
 
-- **commit の前の検査**: ファイルの移動のように Edit を通らない変更では、編集後のフックが動かない。commit の前に
-  `PROOF.bend --check-only` を走らせれば、ここが埋まる。
 - **スキル「Bend の証明」**: proofs.md の「証明を書くときのこつ」と「毎回ここまで確かめる」を手順にしたもの。
 - **スキル「Bend のサーバーと入出力」**: language.md の入出力と C まわりの落とし穴。
 
@@ -101,6 +115,21 @@ bend の動かし方は環境で変わる。
 
 実際のセッションでも、Edit で `server.bend` の `7n` を `6n` にすると、`Laws.hello_echo` の期待値の不一致で差し戻された
 （クラウド環境と Windows の両方）。戻す Edit では何も出なかった。
+
+commit 前のフックと、セッション開始のフックの Windows の分岐は、Windows で次のように確かめた（毎回まっさらな写しで試した）。
+
+| 入力 | 結果 |
+|---|---|
+| commit と無関係なコマンド、「commit」という語を含むだけの `echo` | 何もしない |
+| きれいな状態での `git commit` | 通す |
+| `docs/proofs.md` の法則の表を 1 行書き換えた | 両方向の食い違い（表に無い法則、LAWS.bend に無い行）を返して止める |
+| README に、無いファイルへのリンクとパスを書いた（`git -C … commit` の形） | 両方を返して止める |
+| `server.bend` の `/hello/` の切り取りを 6 文字にした（`git add -A && git commit` の形） | `PROOF.bend` の期待値の不一致を返して止める |
+| `server.bend` にコメントを足しただけ | 証明を検査して通す |
+| PowerShell の形（`Set-Location …; git commit`） | 同じように検査する |
+| セッション開始時に、wslc のイメージが無い／ある／bend が PATH にある | 無いときだけ知らせる |
+
+実際のセッションでも、`docs/proofs.md` の表を壊して `git commit --dry-run` を実行すると止まり、戻すと通った。
 
 ## 付録: スライドの PDF 化（`docs/bend2-spike-slides.pdf`）
 

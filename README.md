@@ -14,7 +14,7 @@ Linux（Claude Code のクラウド環境）と、Windows の WSL コンテナ�
 | `container/Containerfile` | Bend を入れたコンテナ。既定は最小構成、`--target native` で clang 入り |
 | `docs/` | 分かったことの記録（下の「もっと知るには」） |
 | `docs/bend2-spike-slides.pdf` | 検証の解説スライド（15 枚。クラウド環境での初回の検証の時点） |
-| `.claude/hooks/` | Claude Code のフック（Bend の導入、`.bend` の編集後の検査） |
+| `.claude/hooks/` | Claude Code のフック（Bend の導入、`.bend` の編集後の検査、commit 前の証明と docs の検査） |
 
 ## 動かし方
 
