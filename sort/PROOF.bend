@@ -2,13 +2,45 @@
 # 足し合わせる）を merge と同じ形の再帰で示し、sort の法則は木の深さについての
 # 帰納法で、左右の帰納法の仮定を merge の補題に渡して示す。
 #
-# merge の中の分岐は判定 c を引数に受ける branch で行っているので、補題の側も
-# c を引数に受ける .fin を用意し、そこで c を match する（計算した値は match
-# できないため。公式 demo proof_insertion_sort の .fin と同じ書き方）。
+# merge は Nat.is_le の Bool で枝を選ぶ。計算した値は match できないので、補題の
+# 側は判定 c を引数に受ける .fin を用意し、そこで c を match する。整列の証明には
+# 「c が True なら LE(x, y)、False なら LE(y, x)」という証拠が要るので、それを
+# 型 IsLe で表し、Nat.is_le がこの証拠を伴うこと（is_le_ev）を先に示す。
 
 import Base
 import ./main.bend as Sort
 import ./LAWS.bend as Laws
+
+# 比較の判定と証拠
+# ----------------
+
+# 判定 c が x <= y を言い当てていることの証拠の型
+def IsLe(c: Bool, x: Nat, y: Nat) -> Type:
+  match c:
+    case True{}:
+      Sort.LE(x, y)
+    case False{}:
+      Sort.LE(y, x)
+
+# 両方に 1 を足しても証拠はそのまま（LE(1+a, 1+b) は LE(a, b) に簡約される）
+def is_le_ev.succ(c: Bool, -a: Nat, -b: Nat) -> IsLe(c, a, b) -> IsLe(c, 1n+a, 1n+b):
+  match c:
+    case True{}:
+      e => e
+    case False{}:
+      e => e
+
+# Nat.is_le(x, y) は、その判定どおりの証拠を伴う（Nat.cmp と同じく 2 つを同時に減らす）
+def is_le_ev(+x: Nat, +y: Nat) -> IsLe(Nat.is_le(x, y), x, y):
+  match x y:
+    case 0n 0n:
+      Unit{}
+    case 0n 1n+b:
+      Unit{}
+    case 1n+a 0n:
+      Unit{}
+    case 1n+a 1n+b:
+      is_le_ev.succ(Nat.is_le(a, b), a, b, is_le_ev(a, b))
 
 # 整列
 # ----
@@ -19,17 +51,17 @@ def merge_sorted.fin(-lo: Nat, -x: Nat, -xt: List<&2, Nat>, -y: Nat, -yt: List<&
   sx: Sort.Sorted.from(lo, x <> xt), sy: Sort.Sorted.from(lo, y <> yt),
   r1: Sort.Sorted.from(x, xt) -> Sort.Sorted.from(x, y <> yt) -> Sort.Sorted.from(x, Sort.merge(xt, y <> yt)),
   r2: Sort.Sorted.from(y, x <> xt) -> Sort.Sorted.from(y, yt) -> Sort.Sorted.from(y, Sort.merge(x <> xt, yt)),
-  c: Or(Sort.LE(x, y), Sort.LE(y, x)))
-  -> Sort.Sorted.from(lo, Sort.branch(List<&2, Nat>, Sort.LE(x, y), Sort.LE(y, x), c,
+  c: Bool)
+  -> IsLe(c, x, y) -> Sort.Sorted.from(lo, Sort.branch(List<&2, Nat>, c,
        u => x <> Sort.merge(xt, y <> yt),
        u => y <> Sort.merge(x <> xt, yt))):
   (lx, sxt) = sx
   (ly, syt) = sy
   match c:
-    case Inl{e}:
-      (lx, r1(sxt, (e, syt)))
-    case Inr{e}:
-      (ly, r2((e, sxt), syt))
+    case True{}:
+      e => (lx, r1(sxt, (e, syt)))
+    case False{}:
+      e => (ly, r2((e, sxt), syt))
 
 # 下限 lo 以上で整列済みの 2 本を merge すると、下限 lo 以上で整列済み
 def merge_sorted(+xs: List<&2, Nat>, +ys: List<&2, Nat>, -lo: Nat)
@@ -43,7 +75,8 @@ def merge_sorted(+xs: List<&2, Nat>, +ys: List<&2, Nat>, -lo: Nat)
       sx => sy => merge_sorted.fin(lo, x, xt, y, yt, sx, sy,
         merge_sorted(xt, y <> yt, x),
         merge_sorted(x <> xt, yt, y),
-        Sort.le_case(x, y))
+        Nat.is_le(x, y),
+        is_le_ev(x, y))
 
 # 葉 1 つのリストは整列済み。それより深い木は、左右の整列済みのリストを merge したもの
 def Laws.sort_sorted(d, t):
@@ -95,15 +128,15 @@ def bump_add_r(b: Bool, +n: Nat, -m: Nat) -> {Nat.add(n, Sort.bump(b, m)) == Sor
 def count_merge.fin(+z: Nat, +x: Nat, +xt: List<&2, Nat>, +y: Nat, +yt: List<&2, Nat>,
   r1: {Nat.add(Sort.count(z, xt), Sort.count(z, y <> yt)) == Sort.count(z, Sort.merge(xt, y <> yt)) : Nat},
   r2: {Nat.add(Sort.count(z, x <> xt), Sort.count(z, yt)) == Sort.count(z, Sort.merge(x <> xt, yt)) : Nat},
-  c: Or(Sort.LE(x, y), Sort.LE(y, x)))
-  -> {Nat.add(Sort.count(z, x <> xt), Sort.count(z, y <> yt)) == Sort.count(z, Sort.branch(List<&2, Nat>, Sort.LE(x, y), Sort.LE(y, x), c,
+  c: Bool)
+  -> {Nat.add(Sort.count(z, x <> xt), Sort.count(z, y <> yt)) == Sort.count(z, Sort.branch(List<&2, Nat>, c,
        u => x <> Sort.merge(xt, y <> yt),
        u => y <> Sort.merge(x <> xt, yt))) : Nat}:
   match c:
-    case Inl{e}:
+    case True{}:
       %r1 : {Nat.add(Sort.count(z, x <> xt), Sort.count(z, y <> yt)) == Sort.bump(Cmp.is_eq(Nat.cmp(z, x)), _) : Nat}
       bump_add_l(Cmp.is_eq(Nat.cmp(z, x)), Sort.count(z, xt), Sort.count(z, y <> yt))
-    case Inr{e}:
+    case False{}:
       %r2 : {Nat.add(Sort.count(z, x <> xt), Sort.count(z, y <> yt)) == Sort.bump(Cmp.is_eq(Nat.cmp(z, y)), _) : Nat}
       bump_add_r(Cmp.is_eq(Nat.cmp(z, y)), Sort.count(z, x <> xt), Sort.count(z, yt))
 
@@ -119,7 +152,7 @@ def count_merge(+z: Nat, +xs: List<&2, Nat>, +ys: List<&2, Nat>)
       count_merge.fin(z, x, xt, y, yt,
         count_merge(z, xt, y <> yt),
         count_merge(z, x <> xt, yt),
-        Sort.le_case(x, y))
+        Nat.is_le(x, y))
 
 # つないだリストの中の z の個数は、2 本の中の個数の和
 def count_append(+z: Nat, xs: List<&2, Nat>, +ys: List<&2, Nat>)

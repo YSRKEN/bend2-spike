@@ -31,9 +31,8 @@ def leaves(d: Nat, t: Tree(d)) -> List<&2, Nat>:
 
 # 順序
 # ----
-# LE と le_case は公式 demo proof_insertion_sort からの書き写し（Apache-2.0）。
-# 比較の結果を Bool ではなく「どちらが小さいかの証拠」で返すので、証明の側で
-# プログラムと同じ分岐をたどれる。
+# LE は公式 demo proof_insertion_sort からの書き写し（Apache-2.0）。比較そのものは
+# Base の Nat.is_le（Bool を返す）で行い、LE は仕様と証明の側だけで使う。
 
 # LE(a, b) は a <= b の証明の型。成り立てば Unit、成り立たなければ Empty
 def LE(a: Nat, b: Nat) -> Data:
@@ -45,27 +44,17 @@ def LE(a: Nat, b: Nat) -> Data:
     case 1n+a1 1n+b1:
       LE(a1, b1)
 
-# 比較の判定と、その証拠
-def le_case(x: Nat, h: Nat) -> Or(LE(x, h), LE(h, x)):
-  match x h:
-    case 0n b:
-      Inl{Unit{}}
-    case 1n+a 0n:
-      Inr{Unit{}}
-    case 1n+a 1n+b:
-      le_case(a, b)
-
 # 整列
 # ----
 
 # 判定 c に従って k1 か k2 の一方だけを呼ぶ。計算した値は match できないので、
 # 判定を引数に受けるこの関数で分岐する。両方の枝をあらかじめ計算してしまわない
 # よう、枝は関数として受け取る
-def branch(-A: Type, -P: Type, -Q: Type, c: Or(P, Q), k1: Unit -> A, k2: Unit -> A) -> A:
+def branch(-A: Type, c: Bool, k1: Unit -> A, k2: Unit -> A) -> A:
   match c:
-    case Inl{e}:
+    case True{}:
       k1(Unit{})
-    case Inr{e}:
+    case False{}:
       k2(Unit{})
 
 # 整列済みの 2 本を 1 本にまとめる。再帰のたびにどちらかのリストが 1 つ短くなる
@@ -76,7 +65,7 @@ def merge(+xs: List<&2, Nat>, +ys: List<&2, Nat>) -> List<&2, Nat>:
     case +x <> xt Nil{}:
       x <> xt
     case +x <> xt +y <> yt:
-      branch(List<&2, Nat>, LE(x, y), LE(y, x), le_case(x, y),
+      branch(List<&2, Nat>, Nat.is_le(x, y),
         u => x <> merge(xt, y <> yt),
         u => y <> merge(x <> xt, yt))
 
