@@ -2,12 +2,13 @@
 # フックが共有する部品。各フックから source して使う。
 #
 # - JSON の読み書き: クラウドには jq がある。Windows の Git Bash には無いので Python で代える
-# - bend の動かし方: bend が PATH にあればそれを使う（クラウド）。無くて wslc があれば、
+# - bend の動かし方: bend が PATH にあればそれを使う（クラウド、macOS）。無くて wslc があれば、
 #   container/Containerfile から作ったイメージ（既定 bend2-slim、環境変数 BEND_CHECK_IMAGE で変更）の中で動かす（Windows）。
 #   --verdict には Lean 入りのイメージ（既定 bend2-verdict、環境変数 BEND_VERDICT_IMAGE で変更）を使う
 
 export BEND_NO_TELEMETRY=1
-export PATH="$HOME/.bend/bin:$PATH"
+# ~/.elan/bin: Lean（elan）の既定の置き場。--no-modify-path で入れるとシェルの PATH に載らないので、ここで足す
+export PATH="$HOME/.bend/bin:$HOME/.elan/bin:$PATH"
 BEND_IMAGE="${BEND_CHECK_IMAGE:-bend2-slim}"
 # --verdict 用の Lean 入りイメージ（wslc build --target verdict で作る）。無ければ --verdict は飛ばす
 BEND_VERDICT_IMAGE="${BEND_VERDICT_IMAGE:-bend2-verdict}"
@@ -61,6 +62,19 @@ fi
 # Windows のパス（ドライブ文字で始まる）だけ、区切りを / にそろえる。Linux では \ も名前に使えるので触らない
 to_slash() { case "$1" in [A-Za-z]:\\*) printf '%s' "${1//\\//}" ;; *) printf '%s' "$1" ;; esac; }
 
+# with_timeout <秒> <コマンド...>: 時間を区切って動かす。macOS には timeout が無いので、
+# gtimeout（Homebrew の coreutils）、それも無ければ perl の alarm で代える（打ち切ると終了コード 142）
+with_timeout() {
+  local secs="$1"; shift
+  if command -v timeout >/dev/null 2>&1; then
+    timeout "$secs" "$@"
+  elif command -v gtimeout >/dev/null 2>&1; then
+    gtimeout "$secs" "$@"
+  else
+    perl -e 'alarm shift; exec @ARGV or die "exec $ARGV[0]: $!\n"' "$secs" "$@"
+  fi
+}
+
 # ---- bend の動かし方 ----
 # bend_detect: BEND_RUNNER に native / wslc / none を入れる。none のときは BEND_WHY に理由を入れる
 bend_detect() {
@@ -86,7 +100,7 @@ bend_detect() {
 bend_run() {
   local dir="$1"; shift
   if [ "$BEND_RUNNER" = native ]; then
-    (cd "$dir" && timeout 50 bend "$@" 2>&1)
+    (cd "$dir" && with_timeout 50 bend "$@" 2>&1)
     return
   fi
   local root mount workdir
@@ -99,5 +113,5 @@ bend_run() {
     mount="$dir"; workdir="/work"
   fi
   # MSYS_NO_PATHCONV: Git Bash が "C:/x:/work" や "/work" を Windows のパスに書き換えるのを止める
-  MSYS_NO_PATHCONV=1 timeout 50 wslc run --rm -v "$mount:/work" -w "$workdir" "$BEND_IMAGE" bend "$@" 2>&1
+  MSYS_NO_PATHCONV=1 with_timeout 50 wslc run --rm -v "$mount:/work" -w "$workdir" "$BEND_IMAGE" bend "$@" 2>&1
 }

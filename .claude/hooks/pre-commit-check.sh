@@ -4,8 +4,8 @@
 #
 # 1. docs と実物の食い違い（docs-check.py）: 法則の一覧と docs/proofs.md の表、リンクとパスの実在
 # 2. 証明: .bend に変更（ステージ済み・未ステージ・未追跡）があるときだけ、各 PROOF.bend を --check-only で検査する。
-#    bend がそのまま使えて Lean もある環境（クラウド）と、wslc に Lean 入りのイメージ（bend2-verdict）がある環境（Windows）では
-#    --verdict も走らせる。wslc なのに Lean 入りのイメージが無いときは、commit は止めずに警告を出す
+#    bend がそのまま使えて Lean もある環境（クラウド、macOS）と、wslc に Lean 入りのイメージ（bend2-verdict）がある環境（Windows）では
+#    --verdict も走らせる。Lean（または Lean 入りのイメージ）が無いときは、commit は止めずに警告を出す
 #
 # 検査するのは作業ツリーの中身（commit されるステージの中身とは限らない）。
 # 編集後フック（bend-check.sh）が拾えない、ファイルの移動などの変更を commit の前に拾うためのもの。
@@ -48,8 +48,12 @@ if [ -n "$(git -C "$root" status --porcelain --untracked-files=all -- '*.bend' 2
     report+="証明を検査できない（$BEND_WHY）。.bend を変えた commit の前には検査が要る"$'\n\n'
   else
     modes=("--check-only")
-    if [ "$BEND_RUNNER" = native ] && command -v lean >/dev/null 2>&1; then
-      modes+=("--verdict")
+    if [ "$BEND_RUNNER" = native ]; then
+      if command -v lean >/dev/null 2>&1; then
+        modes+=("--verdict")
+      else
+        warn="Lean が見つからないので、commit 前の検査で --verdict（Lean のカーネルによる証明の再検査）を飛ばした。--check-only だけで commit する。Lean v4.34.0 を elan で ~/.elan に入れると検査されるようになる（約 2.7 GB。手順は docs/environments.md）"
+      fi
     elif [ "$BEND_RUNNER" = wslc ]; then
       if wslc image inspect "$BEND_VERDICT_IMAGE" >/dev/null 2>&1; then
         modes+=("--verdict")
