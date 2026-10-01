@@ -89,7 +89,8 @@ if [ -n "$(git -C "$root" status --porcelain --untracked-files=all -- '*.bend' 2
         fi
         rm -f "$tt"
       fi
-    done < <(find "$root" -name PROOF.bend -not -path '*/.*/*')
+    # ai-proofs/ は AI に解かせた実験の記録で、通らなかった証明もそのまま残しているので検査しない（docs/ai-proofs.md）
+    done < <(find "$root" -name PROOF.bend -not -path '*/.*/*' -not -path "$root/ai-proofs/*")
   fi
 fi
 

@@ -24,8 +24,10 @@ def main(root):
     docs = [root / "README.md"] + sorted((root / "docs").glob("*.md"))
     docs = [d for d in docs if d.exists()]
 
+    # ai-proofs/ は AI に解かせた実験の記録で、題ごとの法則と、通らなかった証明もそのまま残している
     laws = {m for f in root.rglob("LAWS.bend")
             if not any(p.startswith(".") for p in f.relative_to(root).parts)
+            and f.relative_to(root).parts[0] != "ai-proofs"
             for m in LAW.findall(f.read_text(encoding="utf-8"))}
     proofs = root / "docs" / "proofs.md"
     if laws and proofs.exists():
