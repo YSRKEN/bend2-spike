@@ -1,6 +1,6 @@
 # Bend 2 を書くときの落とし穴
 
-Bend 2（v2.0.34）で小さな HTTP サーバー（`server/server.bend`）を書いたときに、実際につまずいたことをまとめた。
+Bend 2（v2.0.34）で小さな HTTP サーバー（`server/server.bend`）と、メールボックスを読む MCP サーバー（[mcp-app.md](mcp-app.md)）を書いたときに、実際につまずいたことをまとめた。
 同梱のガイド（`bend guide` で表示される GUIDE.md）を一度読んだ人を想定している。
 上から順に読む必要はない。見出しを拾って、書いているコードに関係する節だけ読めばよい。
 
@@ -37,6 +37,80 @@ def route.root(+path: String, hit: Bool) -> String:
 型の中にしか出てこない変数は `-`（消去）にできる。ただし、実行時に使う計算（`(c < 65536 : U32)` など）に
 出てくる変数を `-` にすると、`expected : -c` で失敗する。
 
+### `match` は引数を宣言した順にしか使えない
+
+`Byte{b0, b1, ..., b7}` を分解したあと、`match b7:` の中で `match b6:` と書くと、
+`a match on a parameter or field (this name is a def or a consumed binder: give the value its own def)` で落ちる。
+先に束縛した `b6` より後の `b7` を先に場合分けできない（ガイドの「Scrutinees follow binder order」）。
+上位のビットから判定したいときは、`cont.bits(b7, b6, ..., b0)` のように、場合分けしたい順に並べた引数を取る補助の def に渡す。
+同じ文面は、使い終わった変数を場合分けしたときや、証明で書き換え（`%e : P`）のあとに場合分けしたときにも出る。
+
+### 相互再帰は書けない。3 つの形で避ける
+
+互いに呼び合う 2 つの def は、上の「呼ばれる関数を上に書く」と同じ `a filled definition` で落ちる。次のどれかで 1 方向の呼び出しにする。
+
+- もう一方の結果を先に求めて、引数で渡す（表を引く `find(rest, c)` の結果を、当たったかで分ける `pick` に渡す）
+- 続きを関数（クロージャ）で渡す（帰納法の仮定を `o => rt(t, o)` として補助の def に渡す）
+- 選択子の引数を取る 1 つの def にまとめる（JSON の値・配列の要素・オブジェクトのフィールドの生成を `s` で切り替える）
+
+### 数（`Nat`）のパターンの中身を 2 回使うには、場合分けする値の側を `+` にする
+
+`match k: case 1n+q:` の `q` を 2 回使うと `consumed more than once` で落ちる。パターンの中に `+` を書く方法は見つからなかったが、
+引数を `+k: Nat` にすると通った。再利用できる値を場合分けすると、取り出した中身も再利用できる（ガイドの「Matching a + value hands out + fields」）。
+
+### 組（`A & B`）は再利用できる種類にならない。リストに入れるなら `Data` の型を作る
+
+対応表を `List<&2, Char & Kind>` と書くと `expected : Data`、`observed : Type` で落ちた。
+`type Row is Data: Row{c: Char, k: Kind}` のように 1 行を表す型を作り、`List<&2, Row>` にすると通る。
+入れ子の組をパターンで分けるとき、内側の要素に `+` を付けると `an annotated term (cannot infer)` で落ちる（`case (+a, (+b, +c))`）。
+内側は `+` なしで受け取る。
+
+### 構成子の名前は全体で 1 つ。Base と重なると落ちる
+
+`type Low is Data: LT{} ...` と書くと `duplicate declaration: LT` で落ちた。Base の比較の結果 `Cmp` の構成子 `LT` と重なる。
+`EQ` も同じで、`type Enc is Data: EB{} EQ{}` は落ち、`EncB`・`EncQ` にすると通った。構成子の名前は型ごとの名前空間を持たない。
+
+### 型のフィールドを取り出す関数は、自動では作られない
+
+`type Msg is Data: Msg{subject: ..., ...}` に対して `Msg.subject(m)` と書くと `expected : a defined name` で落ちる。
+`match m: case Msg{s, fr, d, mi}:` で取り出す。
+
+### 関数（クロージャ）も 1 回しか使えない
+
+ファイルを読むループで、読み終えたときに呼ぶ `done` を、次の読み取りへ進む続きの関数 `f2 => sp2 => loop(..., done)` にも持たせると、
+`consumed more than once` で落ちた。続きの関数を `f2 => sp2 => d2 => loop(..., d2)` にして、`done` は呼ぶ側から 1 回だけ渡し直す。
+
+### `do` の中では、束縛した結果を分解できない
+
+```
+do IO<Unit>:
+  r : File & Result<&1, &1, U32 & String, String> <- File.read(f, 4)
+  (g, res) = r
+```
+
+は `expected : a pattern (a binder or a constructor)` で落ちる。結果を引数として受け取る def を作り、そこで `match` する。
+
+### リストと構成子を入れ子にしたパターンは書ける
+
+Base64 の 4 文字の組を、リストの要素の構成子まで 1 つのパターンで分けられた。最後に `case _:` を置けば、ほかの形は全部そこへ落ちる。
+
+```
+def dec(xs: List<&2, B64>) -> Maybe<&2, List<&2, U32>>:
+  match xs:
+    case Nil{}:
+      Some{[]}
+    case BSix{p0, p1, p2, p3, p4, p5} <> BSix{q0, q1, q2, q3, q4, q5} <> BPad{} <> BPad{} <> Nil{}:
+      ...
+    case _:
+      None{}
+```
+
+### `U32` は 32 個のビットの並びで、`match` で直接分解できる
+
+`U32` は `U32{data: Word(32n)}`、`Word` は下位のビットから並べた `WCon{bit, rest}` の連なり。実行時の値もこの形のまま分解できる。
+`match x: case U32{WCon{b, t}}: b` は最下位のビットを返し、5・6・2^32−1 に対して `True`・`False`・`True` を返した。
+証明で計算を止めないためにこの形を使う話は [proofs.md](proofs.md) にある。
+
 ## 文字列と入出力
 
 ### `String.length` は文字数を返す。Content-Length には UTF-8 のバイト数を自分で数える
@@ -60,6 +134,42 @@ Base には UTF-8 のバイト数を数える関数が無い（`bend base` で�
 
 `/hello/%E4%B8%96%E7%95%8C` には `Hello, %E4%B8%96%E7%95%8C!` と返す。今のサーバーは受け取ったパスを
 そのまま使う。
+
+### 文字列は文字の連結リストで、文字の値は型では縛られていない
+
+`String` は `SCon{head: Char, tail: String}` の連結リスト、`Char` は `Chr{code: U32}` で、型の上では任意の `U32` を持てる。
+処理系の入り口（`io_str`）は UTF-8 を復号し、出口は各文字を UTF-8 に符号化する。
+
+### スカラー値でない文字を出力すると、インタプリタは止まり、ネイティブ版は不正な UTF-8 を出す
+
+```
+def main() -> IO(Unit):
+  IO.print(String.from_list([Char.from_u32(55296)]))   # U+D800
+```
+
+`bend x.bend` は `bend: 55296 is not a Unicode scalar value` で止まる。ネイティブ版は検査せずに `ED A0 80 0A` を出し、終了コード 0 で終わる。
+`Char.from_u32` は検査しないので、ネイティブ版で外に文字を出すプログラムは、スカラー値であることを自分で守る。
+
+### `File.read` は読んだ範囲を UTF-8 として復号し、末尾で途切れた文字を U+FFFD にする
+
+「日本」（6 バイト）のファイルを `File.read(f, 4)` で読むと、`日` と U+FFFD になる。区切って読むと文字が化けるので、
+`File.read_bytes`・`File.read_at` でバイト列（`List<U32>`、1 要素が 1 バイト）を読み、復号は自分で書く。
+Base には、バイト列と文字列を変換する純粋な関数が無い（`bend base | grep -i utf` で当たるのは説明のコメントだけ）。
+`File.read_at` の位置と `File.size` は `U32` なので、4 GB を超えるファイルは扱えない。
+
+### 標準入力は `/dev/stdin` を `File.open` すれば読める
+
+標準入力専用の effect は無いが、`File.open("/dev/stdin", "r")` で開けば、パイプからも読めた（macOS）。
+パイプは 1 回の読み取りで全部が届くとは限らないので、終わり（空のバイト列）まで読み続ける。
+
+### `IO.println` は無い。`IO.die` は終了コードも取る
+
+`IO.print` が改行を付け、`IO.write` は付けない。`IO.println("a")` は `expected : a defined name` で落ちる。
+`IO.die` の形は `IO.die(A, code, msg)` で、`IO.die(U32, "msg")` と書くと `expected : U32`、`observed : String` で落ちる（`base.bend` で確かめた）。
+
+### ディレクトリを列挙する effect は無い
+
+`~/.bend/bend2/effs/` に、ディレクトリの中身を返すものが無い。フォルダを自動で探すには、`Process.run` で外部コマンドを呼ぶか、自作の effect が要る。
 
 ## 並行性
 
@@ -125,6 +235,25 @@ export すると、`curl -o /dev/null` が Windows の curl に渡って書き�
 回数の上限（`Nat` の燃料）を付けると検査を通る。ガイドもサーバーのループにこの方法を勧めている。
 `server.bend` は上限を 100 万回にしている。
 
+## 速さとメモリ
+
+### 読んだバイト列は 1 バイトあたり約 32 バイトのメモリを食う。区切りは 64 KiB にする
+
+`File.read_at` は読んだ分を一度に `List<U32>` の連結リストにして返す。223 MB のファイルを区切って読むと、ネイティブ版の最大メモリは
+区切り 64 KiB で 4 MB、1 MiB で 35 MB、16 MiB で 530 MB だった。区切りを 4 KiB まで小さくすると読み取りの往復が効いて倍ほど遅くなり、
+64 KiB で 0.6 秒が最も速かった（Apple M2）。
+
+### 1 バイトずつの状態機械は、読み取りだけの 7〜10 倍かかる
+
+同じ 223 MB を 1 バイトずつ状態機械に通すと、区切り行を探すだけで 4.3 秒、見出しを集める状態を足すと 7.1 秒かかった（読み取りだけは 0.6 秒）。
+1 バイトごとに状態のレコードを組み直す分と推定する。行が終わったときにしか変わらない部分は別のレコードに分けて、
+毎バイト組み直すフィールドを減らしたが、分けない形と比べてはいない（未確認）。
+
+### `bend x.bend` はネイティブ版より大きくメモリを使う
+
+同じ読み取りで、`bend x.bend` は約 280 MB、ネイティブ版は 4 MB だった。型検査の分が含まれるうえ、実行を JavaScript 側で行っていると推定する
+（上のスカラー値の項で、インタプリタのエラーの文面が JavaScript 側の関数にしか無かった）。常駐させるサーバーはネイティブ版にする。
+
 ## C と外部ライブラリ
 
 ### インタプリタは effect の JS 側、ネイティブビルドは C 側を使う
@@ -162,4 +291,4 @@ C 側の effect には ABI の保証が無い（文書のみ。「There is no AB
 
 ---
 
-最終更新: 2026-10-01
+最終更新: 2026-10-02
