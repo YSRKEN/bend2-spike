@@ -5,3 +5,6 @@
 # bend web/index.html -o web/dist の出力
 /web/dist/
 /web/pong/main.bend
+
+# commit 前のフックが法則の照合のために一時的に書き出すカーネルへの入力
+.laws-check.bendtt

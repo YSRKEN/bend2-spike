@@ -5,7 +5,8 @@
 # 1. docs と実物の食い違い（docs-check.py）: 法則の一覧と docs/proofs.md の表、リンクとパスの実在
 # 2. 証明: .bend に変更（ステージ済み・未ステージ・未追跡）があるときだけ、各 PROOF.bend を --check-only で検査する。
 #    bend がそのまま使えて Lean もある環境（クラウド、macOS）と、wslc に Lean 入りのイメージ（bend2-verdict）がある環境（Windows）では
-#    --verdict も走らせる。Lean（または Lean 入りのイメージ）が無いときは、commit は止めずに警告を出す
+#    --verdict も走らせる。Lean（または Lean 入りのイメージ）が無いときは、commit は止めずに警告を出す。
+#    LAWS.bend の法則がカーネルへの入力（-o PROOF.bendtt）にすべて載っているかも見る（laws-check.py）
 #
 # 検査するのは作業ツリーの中身（commit されるステージの中身とは限らない）。
 # 編集後フック（bend-check.sh）が拾えない、ファイルの移動などの変更を commit の前に拾うためのもの。
@@ -75,6 +76,19 @@ if [ -n "$(git -C "$root" status --porcelain --untracked-files=all -- '*.bend' 2
           report+="bend PROOF.bend $m が失敗（exit $code、${dir#"$root"/}）:"$'\n'"$head_out"$'\n\n'
         fi
       done
+      # 法則がカーネルへの入力にすべて載っているか（載らない def は --verdict をすり抜ける。bendlang/bend#1186）。
+      # 書き出しに Lean は要らないので、--verdict を飛ばす環境でも見る。wslc からも見えるよう PROOF.bend の隣に書き出す
+      if [ -f "$dir/LAWS.bend" ] && [ -n "$py" ]; then
+        tt="$dir/.laws-check.bendtt"
+        out=$(bend_run "$dir" PROOF.bend -o .laws-check.bendtt)
+        code=$?
+        if [ $code -ne 0 ] || [ ! -f "$tt" ]; then
+          report+="bend PROOF.bend -o .laws-check.bendtt が失敗（exit $code、${dir#"$root"/}）:"$'\n'"$(printf '%s\n' "$out" | head -n 10)"$'\n\n'
+        elif ! out=$(PYTHONIOENCODING=utf-8 "$py" "$root/.claude/hooks/laws-check.py" "$dir/LAWS.bend" "$tt" 2>&1); then
+          report+="法則がカーネルに渡っていない（.claude/hooks/laws-check.py、${dir#"$root"/}）:"$'\n'"$out"$'\n\n'
+        fi
+        rm -f "$tt"
+      fi
     done < <(find "$root" -name PROOF.bend -not -path '*/.*/*')
   fi
 fi

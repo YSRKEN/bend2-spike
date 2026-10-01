@@ -74,6 +74,11 @@ bend は 50 秒で打ち切る。macOS には `timeout` コマンドが無いの
   `--verdict` も走らせる。イメージの名前は環境変数 `BEND_VERDICT_IMAGE` で変えられる。Lean（またはイメージ）が無ければ、commit は止めずに `--verdict` を飛ばし、そのことを警告として出す（利用者には画面の警告、Claude には文脈として届く）。
   Lean の有無は PATH の `lean` で見る。elan は既定で `~/.elan` に入るので、`lib-bend.sh` がそこを PATH に足している。
   以前の版は足していなかったため、`--no-modify-path` で Lean を入れた macOS では、警告も出さずに `--verdict` を飛ばしていた。
+- **法則がカーネルに渡っているか**（`.claude/hooks/laws-check.py`）: 証明を検査するときは、`LAWS.bend` のあるフォルダごとに
+  `bend PROOF.bend -o .laws-check.bendtt` でカーネルへの入力を書き出し、`law` で宣言した法則がすべて `LAWS.<名前> :` の形で
+  載っているかを見る。載らない def は `--verdict` をすり抜けることがあるため（[proofs.md](proofs.md) の「`--verdict` は型検査の
+  二重目の網」）。書き出しに Lean は要らないので、`--verdict` を飛ばす環境でも見る。書き出したファイルは照合のあとで消す
+  （`.gitignore` にも入れてある）。
 
 どちらの検査も、`.` で始まるフォルダ（`.git`、git の管理から外した作業用の `.scratch` など）の下にある `LAWS.bend`・`PROOF.bend` は見ない。
 公式の demo を手元に写して読むことがあり、それをリポジトリの法則として数えないためである。
@@ -156,6 +161,8 @@ macOS（Apple M2、bend と Lean を `~/.bend`・`~/.elan` に導入、`timeout`
 | `1n + 1n == 3n` を `{==}` で証明したファイルの Edit | `SOME PROOFS FAIL` と期待値の不一致で差し戻す |
 | `with_timeout 1 sleep 5` | 1 秒で打ち切り、終了コード 142 |
 | セッション開始時（bend が PATH にある） | 何も出さない |
+| `.bend` に変更がある状態での `git commit`（法則の照合を足した版） | `server/`・`sort/` で法則の照合も走らせて通す。`.laws-check.bendtt` は残らない |
+| 作業用のリポジトリで、カーネルへの入力から法則を 1 つ抜く仮の bend を使った `git commit` | 抜いた法則の名前を挙げて止める（終了コード 2） |
 
 ## 付録: スライドの PDF 化（`docs/bend2-spike-slides.pdf`）
 

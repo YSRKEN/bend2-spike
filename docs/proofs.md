@@ -75,6 +75,68 @@ Base にある補題は `Equal.cong`・`Equal.sym`・`Equal.trans` などにほ�
 `utf8.bytes` の代わりに `String.length` を使うよう戻しても、証明は通ってしまった。「部品が正しい」という法則だけでは、
 「その部品を使っている」ことは保証されない。応答全体の形式を定める法則（`response_format`）を足して塞いだ。
 
+## `--verdict` は型検査の二重目の網。カーネルは誤りを捕まえるが、網にも穴がある
+
+`--verdict` は、bend2（TypeScript で書かれた型検査）が通した def を、Lean で証明された小さなカーネル（BendTT）でもう一度検査する。
+`ALL PROOFS CHECK` になるのは、両方が受け入れ、`@unsafe` や外部のコードに頼っていないときだけ（`bend guide` の 328〜332 行）。
+カーネルだけが捕まえる誤りは、bend2 が誤って通したものに限られる。macOS（bend 2.0.34、Lean 4.34.0）で 2026-10-01 に次を確かめた。
+
+### カーネルは、bend2 を通さずに渡した偽の証明を拒む
+
+`bend x.bend -o x.bendtt` でカーネルへの入力を書き出し、手で書き換えて、カーネル（`~/.bend/bendtt/<ハッシュ>/bendtt`）に直接渡した。
+
+| 渡したもの | カーネルの判定 |
+|---|---|
+| `1 + 1 == 2` を `{==}` で証明（対照） | `ALL PROOFS CHECK`（終了コード 0） |
+| 主張だけを `1 + 1 == 3` に書き換えた | `SOME PROOFS FAIL`、期待値と実際の値を示す（終了コード 1） |
+| `1 + 1 == 3` を自分自身を呼ぶ def で「証明」 | `SOME PROOFS FAIL`、`calls that descend`（停止しない） |
+| 同じ主張を、互いを呼び合う 2 つの def で「証明」 | `SOME PROOFS FAIL`、`calls that descend` |
+| `Nat.add` の定義を「0 + y = y + 1」にすり替え、`1 + 1 == 3` を `{==}` で証明 | `ALL PROOFS CHECK` |
+
+最後の行のとおり、カーネルが保証するのは「渡された定義のもとで証明が正しい」ことまでで、定義や法則が意図どおりに訳されたかは保証しない。
+ガイドの「the translation has no proof, so read it to confirm a law」はこのことを言っている。
+
+### bend2 は通すがカーネルは拒む例が、2.0.34 にもある
+
+[bendlang/bend#1167](https://github.com/bendlang/bend/issues/1167)（未解決）の例は、2.0.34 でも `--check-only` が通り、`--verdict` が
+「TypeScript の実装と形式化されたカーネルの食い違い」という知らせ付きで `SOME PROOFS FAIL` になった。構成子を組み直して自分を呼ぶ再帰
+（`height(Node{rest})`）で、issue のコメントでは、bend2 が通す形は実際には必ず小さくなるので、偽を通したのではなくカーネルの規則が
+狭いだけと分析されている。
+
+偽を通した過去の例として、[bendlang/bend#902](https://github.com/bendlang/bend/issues/902)（2026-09-20 に修正済み）は、
+`~` 引数を経由した 2 つの def の循環で `False{} == True{}` を `--check-only` に通していた。2.0.34 では bend2 の段階で
+`a decreasing self-call` で止まり、カーネルまで届かない。issue の一覧で「verdict」を含むものは 46 件あり、うち 40 件が 2026-09-20 以降に立ち、21 件が未解決だった
+（2026-10-01 に `gh search issues --repo bendlang/bend verdict` で数えた）。
+
+### `--verdict` が、カーネルに見せないまま通してしまう def がある
+
+[bendlang/bend#1186](https://github.com/bendlang/bend/issues/1186)（未解決）の穴も 2.0.34 で再現した。構成子の無い型の `~` 引数を
+持つ def は、カーネルへの入力に載らず、範囲外とも報告されない。上の #1167 と同じ再帰をこの def の中に書くと、`--verdict` が
+`ALL PROOFS CHECK` を出した。`~v: Void` を外しただけの同じ本体は、カーネルに渡って拒まれる。
+
+```python
+type Void is Data:
+
+def skipped(~v: Void, t: Tree) -> Nat:   # Tree・Forest は #1167 と同じ
+  match t:
+    case Leaf{}: 0n
+    case Node{End{}}: 1n
+    case Node{Cons{+x, rest}}: Nat.max(1n+skipped(~v, x), skipped(~v, Node{rest}))
+```
+
+空の型の値は作れないので、この def は呼べず、ここから偽を導く方法は issue でも見つかっていない。法則の証明から呼ぶこともできなかった。
+法則の `for` には `~` 引数を書けず（`expected : a name`）、証明の def から `helper(~v, n)` と呼ぶと、`~` には閉じた値しか渡せない
+（`a template applied to closed ~ arguments`）と bend2 が止める。ただ「`--verdict` が通った def は
+カーネルも検査した」とは言えなくなる。このリポジトリの証明は、`-o PROOF.bendtt` で書き出した入力に、法則 8 個（server 6 個、sort 2 個）が
+すべて証明の本体付きで載っていて、`~` 引数を持つ def も無いので、この穴には当たっていない。
+
+### 確かめ方に足すこと
+
+上の「毎回ここまで確かめる」に加えて、`bend PROOF.bend -o PROOF.bendtt` を書き出し、法則の主張が訳されたあとも意図どおりであることを読む。
+カーネルは定義のすり替えも、載らなかった def も教えてくれない。法則がすべて `LAWS.<名前> :` の形で載っていることは、commit 前のフックが
+`.claude/hooks/laws-check.py` で機械的に確かめる（[claude-code.md](claude-code.md)）。手で照合したときは、名前空間の取り違えなどで
+3 回数え直した。
+
 ## このサーバーで証明したこと、しなかったこと
 
 証明した法則は 6 つ。どれもサーバーの純粋な部分についての主張で、`bend PROOF.bend --verdict` も通っている（クラウド環境で確認）。
