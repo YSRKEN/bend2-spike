@@ -8,3 +8,4 @@
 
 # commit 前のフックが法則の照合のために一時的に書き出すカーネルへの入力
 .laws-check.bendtt
+/bench/raytrace/fly.bend
