@@ -10,7 +10,7 @@ Linux（Claude Code のクラウド環境）と、Windows の WSL コンテナ�
 | 問い | 答え | 詳しく |
 |---|---|---|
 | Windows の GeForce で `!`（GPU 実行）は動くか | 公式の手順では動かない（WSL2 に concurrent managed access が無く、黙って CPU で走る）。生成した C の判定を 1 行外すと動き、答えも合う | [docs/gpu.md](docs/gpu.md) |
-| 「C 並みの速さ」は本当か | mandelbrot では C とほぼ同じ速さで、スレッド数にも同じように伸びる。n-queens では C の 3〜4 倍遅く、仕事を均等に割らないとスレッド数に伸びない | [docs/benchmarks.md](docs/benchmarks.md) |
+| 「C 並みの速さ」は本当か | mandelbrot では C とほぼ同じ速さで、スレッド数にも同じように伸びる。n-queens では C の 3〜4 倍遅く、仕事を均等に割らないとスレッド数に伸びない。Apple M2 でも同じ傾向 | [docs/benchmarks.md](docs/benchmarks.md) |
 | GPU はどれだけ速いか | mandelbrot（反復 4096 回）で CPU 12 スレッドの約 8 倍。ただし毎回約 1.7 秒の固定費がある。n-queens では CPU の 7 倍遅い | [docs/benchmarks.md](docs/benchmarks.md) |
 | 並列に走るソートの正しさを証明できるか | できた。parallel let で並列に走るマージソートについて、出力が整列済みで入力の並べ替えであることを証明した（補題 9 個、146 行）。ただし証明向きの比較のせいで遅い | [docs/proofs.md](docs/proofs.md) |
 | `--verdict`（Lean のカーネル）は証明の誤りを捕まえるか | カーネル自体は捕まえる。手で偽に書き換えた主張も、停止しない自己参照や循環による「証明」も拒んだ。ただし定義のすり替えは見抜けず、2.0.34 には `--verdict` がカーネルに見せないまま通す def もある（bendlang/bend#1186）。法則がカーネルに渡っていることは commit 前のフックで確かめる | [docs/proofs.md](docs/proofs.md) |

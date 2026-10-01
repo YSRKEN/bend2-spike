@@ -86,7 +86,9 @@ interleaved by one event loop, as in Node.js」の段落）。純粋な計算は
 ### 待たせないには、計算を区切って順番を譲るか、子プロセスに回す。`IO.fork` では避けられない
 
 同じ `pow2(30)` を 4 通りの呼び方で受けるサーバー（`concurrency/stall.bend`）を書き、重い要求を投げた 0.3 秒後から `/` を
-叩いて比べた（`concurrency/measure.sh`、3 回。生の値は `concurrency/results.tsv`）。
+叩いて比べた（`concurrency/measure.sh`、3 回。生の値は `concurrency/results/` に機ごとにある）。下の表は Windows（Ryzen 5 3600、wslc）の値。
+macOS（Apple M2）でも同じ傾向で、最中の `/` の 1 回目は、その場で計算するときと `IO.fork` のときが 0.29〜0.41 秒、
+区切って譲るときが 0.013〜0.024 秒、子プロセスに回すときが 0.0005 秒前後だった（`concurrency/results/m2-macos.tsv`）。
 
 | 呼び方 | 重い要求の応答 | 最中の `/` の 1 回目 |
 |---|---|---|

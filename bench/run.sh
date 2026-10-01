@@ -1,7 +1,7 @@
 #!/bin/bash
 # bench/ の計測を回す。bend が PATH にある環境（Linux、macOS、Containerfile のイメージの中）ならどこでも使える。
 #
-#   run.sh mandel|nqueens|threads    # 題材ごと。どれも 10 分以内に終わる大きさにしてある
+#   run.sh mandel|nqueens|threads|sort    # 題材ごと。どれも 10 分以内に終わる大きさにしてある
 #   BENCH_QUICK=1 run.sh mandel      # 小さな大きさで、全部の条件が動くかだけを見る
 #
 # 各条件を 2 回ずつ、条件を交互に並べて測る（同じ条件を続けて測ると、機の状態の変化が一方に偏るため）。
@@ -158,8 +158,24 @@ case ${1:-} in
       done
     done
     ;;
+  sort)
+    # sort/main.bend は大きさ（2^d 個）が check(16n) に固定なので、写しの d だけを変えてビルドする（docs/proofs.md の速さ）
+    if [ "$quick" = 1 ]; then ds="10 11"; else ds="15 16 17"; fi
+    for d in $ds; do
+      sed "s/check(16n)/check(${d}n)/" ../sort/main.bend > "$tmp/sort$d.bend"
+      grep -q "check(${d}n)" "$tmp/sort$d.bend" || { note "sort/main.bend に check(16n) が無い"; exit 1; }
+      bend "$tmp/sort$d.bend" -o "$tmp/sort$d" > /dev/null 2>&1 || true
+      [ -x "$tmp/sort$d" ] || { note "sort$d の実行ファイルができなかった"; exit 1; }
+    done
+    for rep in 1 2; do
+      for d in $ds; do
+        row sort "bend cpu1" "2^$d" "$tmp/sort$d" --gpu off --threads 1
+        row sort "bend cpu$ncpu" "2^$d" "$tmp/sort$d" --gpu off
+      done
+    done
+    ;;
   *)
-    echo "usage: run.sh mandel|nqueens|threads" >&2
+    echo "usage: run.sh mandel|nqueens|threads|sort" >&2
     exit 2
     ;;
 esac

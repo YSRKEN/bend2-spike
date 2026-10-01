@@ -30,7 +30,8 @@ GPU を Windows で動かす方法と、その制限は [gpu.md](gpu.md) にあ�
 この文書の値は、`bench/run.sh` が wslc の GPU 用イメージの中でしか動かなかったころの版で測った。いまの `bench/run.sh` は、
 bend が PATH にある環境（Linux、macOS、Containerfile のイメージの中）ならどこでも動き、スレッド数・C 版の OpenMP・GPU（CUDA、
 WSL2 の回避、Metal）を環境から決める。測る条件と行の並びは以前の版と同じにしてあるが、Windows で新しい版を回してはいない。
-macOS（Apple M2）と Docker の Linux では、小さな大きさ（`BENCH_QUICK=1`）で全部の条件が動くことだけを確かめた。
+Docker の Linux では、小さな大きさ（`BENCH_QUICK=1`）で全部の条件が動くことだけを確かめた。macOS（Apple M2）では本番の大きさで測った
+（下の「macOS（Apple M2）」）。
 
 同じ日の別の時間帯に同じ計測をしたところ、CPU の結果が全体に 1.3〜1.8 倍遅く出た（mandelbrot 反復 256 回・1 スレッドで Bend 14.9 秒、C 14.5 秒）。
 同じ回の中の 2 回はよく揃っていたので、機の別の負荷を拾っていたと推定している（未確認）。比べるときは、同じ回の中の値どうしで比べる。
@@ -107,6 +108,61 @@ N=16 は別の回に 1 回だけ、素直な版と C で測った: Bend 1 スレ
 均等な版は GPU でも素直な版の約半分の時間になったが、CPU 12 スレッドの 8〜18 倍かかる。葉が 256 枚しか無く、
 GPU の 16,384 レーンのほとんどが遊ぶうえ、各レーンが別々の深さの探索をする。ガイドの言う「divergent work」そのものである。
 `bend guide shaders` は、GPU のレーンは直列の仕事で CPU の P コアの約 1/75 の速さだと書いている（文書のみ）。
+
+## macOS（Apple M2）: CPU では Bend と C の差が Ryzen と同じ形で出る。GPU は macOS に打ち切られることがある
+
+Apple M2（高性能コア 4・高効率コア 4、16 GB）の macOS 26.6.2 で、いまの `bench/run.sh` を回した（2026-10-01）。C は Apple clang 21 に
+Homebrew の libomp。GPU は、2.0.34 では Metal のコンパイラが落ちるので（[gpu.md](gpu.md) の「macOS」）、2.0.27 を `BEND_GPU_HOME` で指して使った。
+生の値は `bench/results/m2-macos/`。
+
+Mac を使っている最中に測ったので、条件を次のように揃えた。題材の前ごとに、`top` で測った CPU の空きが 80% 以上の状態が 30 秒続くのを待ち、
+Docker Desktop は止めた。それでも画面の描画（`WindowServer`）や Claude のアプリが合わせて CPU の 2 割ほどを使っていた。最初は空き 90% を
+条件にしたが、15 分待って 90% に届いたのは 1 回だけだった。Ryzen の値とは機も条件も違うので、比べるのは同じ表の中の値どうしにする。
+
+### CPU: mandelbrot は C と同じ速さ、n-queens は C の 3〜4 倍遅い
+
+| 題材 | Bend 1 スレッド | Bend 8 スレッド | C 1 スレッド | C 8 スレッド |
+|---|---|---|---|---|
+| mandelbrot 反復 256 回 | 12,325・12,288 ms | 2,146・2,139 ms | 13,238・12,511 ms | 2,175・2,216 ms |
+| mandelbrot 反復 4,096 回 | （測らず） | 35,422・35,618 ms | （測らず） | 36,697・39,550 ms |
+| n-queens 15（素直な版） | 3,451・3,347 ms | 2,304・2,243 ms | 937・945 ms | 169・165 ms |
+| n-queens 15（均等な版） | 3,180・3,148 ms | 661・640 ms | （同上） | （同上） |
+
+mandelbrot の 1 スレッドの値はスレッド数の計測（`run.sh threads`）、それ以外は `run.sh mandel`・`run.sh nqueens` を GPU なし
+（`BEND_GPU=off`）で回した値。答えはすべての条件で一致した。Ryzen と同じく、n-queens の素直な版は 8 スレッドでも 1.5 倍しか伸びず、
+均等な版は 5 倍に伸びた。
+
+### 高効率コアに仕事が回り始めると、Bend がわずかに遅れる
+
+mandelbrot 反復 256 回で、スレッド数を 1 から 8 まで 1 ずつ変えた。1 スレッドの速い方の値に対する倍率で示す。
+
+| スレッド数 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 |
+|---|---|---|---|---|---|---|---|---|
+| Bend | 1.00 | 1.91 | 2.70 | 3.66 | 4.03 | 4.53 | 5.23 | 5.80 |
+| C | 1.00 | 1.91 | 2.75 | 3.66 | 4.28 | 4.90 | 5.36 | 5.84 |
+
+高性能コアの数（4）までは、Bend と C の倍率が揃った。5・6 スレッドでは Bend が C より 6〜8% 遅れ、8 スレッドでまた揃った。
+Bend のスケジューラは仕事を最初に配ったコアから動かさない（`bend guide` の「Parallelism」の「every task is handed to a core exactly once」）。
+一方、C は OpenMP の `schedule(dynamic, 16)` で、空いたスレッドが次の行を取る。そのため、遅い高効率コアに配られた仕事を
+Bend だけが待つと推定している。8 スレッドで揃う理由は分からない。どのスレッドがどのコアで走ったかは測っていない。
+
+### GPU（Metal、2.0.27）: 固定費は CUDA より小さい。長い仕事は macOS に打ち切られた
+
+| 題材 | Bend 8 スレッド | Bend GPU |
+|---|---|---|
+| mandelbrot 反復 0 回 | 8 ms | 449 ms |
+| mandelbrot 反復 256 回 | 2,211 ms | 490 ms |
+| mandelbrot 反復 1,024 回 | 8,745 ms | 1,231 ms |
+| n-queens 14（素直な版・均等な版） | 330・335 ms／127・100 ms | 12,467・13,718 ms／6,332・6,688 ms |
+| n-queens 15（素直な版・均等な版） | 2,215・2,220 ms／628 ms | 82,784 ms／36,421 ms |
+
+GPU の固定費（反復 0 回）は約 0.45 秒で、CUDA の約 1.7 秒より小さい。反復 1,024 回で CPU 8 スレッドの約 7 倍速い。n-queens は
+Ryzen と同じく、GPU が CPU より 1 桁以上遅い。答えはどれも CPU と一致した。
+
+mandelbrot の反復 4,096 回と、n-queens 15 の 2 回目の GPU は、`bend: Impacting Interactivity
+(0000000e:kIOGPUCommandBufferCallbackErrorImpactingInteractivity)` で止まった。GPU の 1 回の仕事が長く、画面の描画と取り合った
+ために macOS が打ち切ったと推定している。午前に手で回したときは、反復 4,096 回が 4.4〜4.9 秒で通っていた（[gpu.md](gpu.md)）。
+打ち切られた回の値は、その手前までを `bench/results/m2-macos/*-gpu.tsv` に残した。
 
 ## 答えの一致と、FMA の罠
 

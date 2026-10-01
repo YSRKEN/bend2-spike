@@ -89,7 +89,7 @@ macOS 26 には `sha256sum` があるので、`web/pong/fetch.sh` もそのま�
 | `!` を含むプログラムのビルド | 2.0.34 では `-o` が失敗する。原因と回避、2.0.27 で GPU を動かした結果は [gpu.md](gpu.md) の「macOS」 |
 | 公式の pong のネイティブのウィンドウ版 | `--gpu off` を付ければ動き、キーで遊べる（下の「pong」の小節） |
 
-速さの計測（`bench/run.sh`）は、macOS でも動くように直し、小さな大きさで全部の条件が動くことだけを確かめた。本番の大きさではまだ測っていない。
+速さの計測（`bench/run.sh`）は macOS でも動く。M2 で測った結果は [benchmarks.md](benchmarks.md) の「macOS（Apple M2）」にある。
 C 版には OpenMP が要り、Apple clang は `-fopenmp` を直接は受け付けないので、Homebrew の libomp（`brew install libomp`）を入れる。
 `bench/run.sh` はそれを見つけて使う。
 

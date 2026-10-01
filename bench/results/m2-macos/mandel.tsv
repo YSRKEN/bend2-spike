@@ -1,0 +1,17 @@
+題材	条件	引数	答え	ミリ秒
+mandel	bend cpu8	0	0	7
+mandel	C cpu8	0	0	352
+mandel	bend cpu8	256	797303755	2146
+mandel	C cpu8	256	797303755	2175
+mandel	bend cpu8	1024	2964681653	8875
+mandel	C cpu8	1024	2964681653	9023
+mandel	bend cpu8	4096	3014046195	35422
+mandel	C cpu8	4096	3014046195	36697
+mandel	bend cpu8	0	0	8
+mandel	C cpu8	0	0	9
+mandel	bend cpu8	256	797303755	2139
+mandel	C cpu8	256	797303755	2216
+mandel	bend cpu8	1024	2964681653	8773
+mandel	C cpu8	1024	2964681653	9016
+mandel	bend cpu8	4096	3014046195	35618
+mandel	C cpu8	4096	3014046195	39550

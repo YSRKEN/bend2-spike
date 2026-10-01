@@ -137,6 +137,10 @@ clang -O3 -std=c11 /tmp/mandel.c -o /tmp/mandel -lpthread -lm
 2.0.27 の実行ファイルは、`IO.args` の先頭に実行ファイル名を入れない。`mandel.bend` の `iters` は 2 番目の要素を読むので、
 引数の前にダミーを 1 つ置く（`./mandel x 4096`）。置かないと、反復回数が既定の 256 のままになる。
 
+この表は手で 1 回ずつ回した値。あとで `bench/run.sh` で測り直すと、GPU の固定費は約 0.45 秒で、CUDA の約 1.7 秒より小さかった。
+一方、反復 4,096 回の GPU は、macOS に `Impacting Interactivity` で打ち切られた。n-queens では、Ryzen と同じく GPU が CPU より 1 桁以上遅かった
+（[benchmarks.md](benchmarks.md) の「macOS（Apple M2）」）。
+
 ---
 
 最終更新: 2026-10-01
