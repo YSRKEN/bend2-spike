@@ -1,6 +1,7 @@
 # 担当に渡した指示
 
-`ai-proofs/` の実験で、各担当（サブエージェント）に渡した指示の全文。`{MODEL}` と `{PROBLEM}` だけを差し替え、どの担当にも同じ文面を渡した。
+`ai-proofs/` の実験で、各担当（サブエージェント）に渡した指示の全文。`{TRIAL}`（回: t1・t2）、`{MODEL}`、`{PROBLEM}` だけを差し替え、どの担当にも同じ文面を渡した。
+1 回目（t1）は、作業フォルダに回の段が無く（`runs\{MODEL}\{PROBLEM}\`）、読まないものに `docs/ai-proofs.md` が無かった。この文書は 1 回目のあとに書いたもので、1 回目の時点では存在しなかった。
 担当は Claude Code の Agent ツールで、モデルを指定して起動した。
 公開にあたり、手元の機のパスは `<リポジトリ>`（このリポジトリの置き場）と `<作業用の一時フォルダ>`（`bend guide` の本文と Base を書き出した場所）に置き換えた。
 
@@ -10,7 +11,7 @@ Bend 2（v2.0.34）で、人が書いた法則（`LAWS.bend`）を満たす実�
 
 ## 作業の場所
 
-- 作業フォルダ: `<リポジトリ>\ai-proofs\runs\{MODEL}\{PROBLEM}\`
+- 作業フォルダ: `<リポジトリ>\ai-proofs\runs\{TRIAL}\{MODEL}\{PROBLEM}\`
 - そこにある `LAWS.bend` が仕様。冒頭のコメントに、何を実装するかが書いてある。
 - あなたが書くのは、同じフォルダの `main.bend`（実装）と `PROOF.bend`（証明）の 2 つだけ。`LAWS.bend` は `main.bend` を `M` として import している。
 - `PROOF.bend` は `LAWS.bend` を import し、各法則を同じ名前の def で証明する（法則 `rev_rev` なら `def Laws.rev_rev(...)`。`import ./LAWS.bend as Laws` とした場合）。
@@ -18,7 +19,7 @@ Bend 2（v2.0.34）で、人が書いた法則（`LAWS.bend`）を満たす実�
 ## 道具
 
 - bend は Windows に無い。wslc のコンテナで動かす。Bash ツール（Git Bash）から、次の形で呼ぶ（`MSYS_NO_PATHCONV=1` が無いとパスが壊れる）:
-  `MSYS_NO_PATHCONV=1 wslc run --rm -v "<リポジトリ>:/work" -w /work/ai-proofs/runs/{MODEL}/{PROBLEM} bend2-slim bend PROOF.bend`
+  `MSYS_NO_PATHCONV=1 wslc run --rm -v "<リポジトリ>:/work" -w /work/ai-proofs/runs/{TRIAL}/{MODEL}/{PROBLEM} bend2-slim bend PROOF.bend`
 - `.bend` を Write/Edit すると、リポジトリのフックが自動で `--check-only` を走らせ、失敗すれば内容を返す。それを手がかりにしてよい。
 - 言語の資料: `<作業用の一時フォルダ>\GUIDE.md`（`bend guide` と同じもの。特に「Laws and Proofs」「Recursion and Termination」「Quantities」）と、同じ場所の `base.bend`（Base の全定義）。
 
@@ -32,7 +33,7 @@ Bend 2（v2.0.34）で、人が書いた法則（`LAWS.bend`）を満たす実�
 
 - `LAWS.bend` は変えない。根拠: 仕様そのものなので、変えると何を証明したのか分からなくなる。
 - 作業フォルダの外のファイルは書かない。根拠: ほかの被験者が同時に別のフォルダで作業している。
-- このリポジトリの既存の証明（`server/`・`sort/`・`ai-proofs/runs/` のほかのフォルダ）、`.scratch/` の公式 demo、`docs/proofs.md` は読まない。web で Bend の証明の例を探すこともしない。根拠: 手がかりの有無で結果が変わらないよう、全員を同じ資料（上の GUIDE.md と base.bend）で比べるため。
+- このリポジトリの既存の証明（`server/`・`sort/`・`ai-proofs/runs/` のほかのフォルダ）、`.scratch/` の公式 demo、`docs/proofs.md`・`docs/ai-proofs.md` は読まない。web で Bend の証明の例を探すこともしない。根拠: 手がかりの有無で結果が変わらないよう、全員を同じ資料（上の GUIDE.md と base.bend）で比べるため。
 - git の commit・push はしない。根拠: 公開リポジトリへの送出は、利用者の承認を得てから親が行う。
 - ファイルを消すときは `rm` を使わない（フックが止める）。要らなくなったファイルは空にするか、報告に書く。
 
