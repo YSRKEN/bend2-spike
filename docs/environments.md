@@ -87,7 +87,7 @@ macOS 26 には `sha256sum` があるので、`web/pong/fetch.sh` もそのま�
 | `concurrency/stall.bend` の 4 経路（深さ 30） | Windows と同じ傾向。pure と fork では最中の `/` が 0.46 秒待たされ、step と proc では待たされない |
 | `bend web/index.html -o web/dist`、pong のまとめ | どちらもでき、ブラウザで描かれた。コンソールのエラーは無し |
 | `!` を含むプログラムのビルド | 2.0.34 では `-o` が失敗する。原因と回避、2.0.27 で GPU を動かした結果は [gpu.md](gpu.md) の「macOS」 |
-| 公式の pong のネイティブのウィンドウ版 | `--gpu off` を付ければ動き、遊べる（下の「pong」の小節） |
+| 公式の pong のネイティブのウィンドウ版 | `--gpu off` を付ければ動き、キーで遊べる（下の「pong」の小節） |
 
 速さの計測（`bench/run.sh`）は、macOS でも動くように直し、小さな大きさで全部の条件が動くことだけを確かめた。本番の大きさではまだ測っていない。
 C 版には OpenMP が要り、Apple clang は `-fopenmp` を直接は受け付けないので、Homebrew の libomp（`brew install libomp`）を入れる。
@@ -131,7 +131,9 @@ bend web/pong/main.bend -o /tmp/pong    # エラーで終わるが /tmp/pong は
 ```
 
 「Pong」という 512×512 のウィンドウが開き、左右のパドルとボールが描かれた。1 秒おいて画面を 2 回撮ると、ボールとパドルの位置が
-変わっていて、ゲームが進んでいた。キーの操作は試していない。Windows では表示先が無くてネイティブのウィンドウ版を動かせなかったが
+変わっていて、ゲームが進んでいた。キーの操作は、利用者が手で W/S と ↑/↓ を押して効くことを確かめた（2026-10-01）。
+Claude Code から osascript でキーを送ろうとしたときは、macOS のアクセシビリティの許可が無く、
+`osascriptには補助アクセスは許可されません。 (-1719)` で止まった。Windows では表示先が無くてネイティブのウィンドウ版を動かせなかったが
 （[web.md](web.md)）、macOS ではそのまま動く。
 
 ### Docker でも arm64 のまま動くが、素の macOS より遅い
@@ -155,11 +157,11 @@ docker run --rm -v "$PWD":/work -w /work/server bend2-slim bend PROOF.bend --che
 VM に割り当てられていたのは CPU 4・メモリ 4 GB で、GPU 用の `--target gpu` は CUDA が要るので Mac では使えない。
 素の macOS で動かすほうがよい。
 
-Claude Code のサンドボックスの中から `docker build` を実行すると、1 分で `DeadlineExceeded: context deadline exceeded` になった。
-サンドボックスの外で実行すると通った。
 TARGETARCH を見る形に変えたあと、Windows の wslc で作り直してはいない。wslc が `TARGETARCH` を渡さない場合も、空なら x64 版を取るので、
 以前と同じ動きになるはずである（未確認）。
 
+Claude Code のサンドボックスの中から `docker build` を実行すると、1 分で `DeadlineExceeded: context deadline exceeded` になった。
+サンドボックスの外で実行すると通った。
 
 ## Windows: wslc のコンテナで動かす
 

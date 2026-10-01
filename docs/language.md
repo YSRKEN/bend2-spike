@@ -139,12 +139,21 @@ export すると、`curl -o /dev/null` が Windows の curl に渡って書き�
 bend main.bend -o main.c && clang -std=c11 -O3 main.c -lpthread -lm -lz -o main
 ```
 
-ビルド処理は環境変数 `CC` を優先して使うので、ラッパーで `-l` を足す方法もありそう（未確認）。
+ビルド処理は環境変数 `CC` を優先して使うので、ラッパーで `-l` を足しても通る。macOS（Apple clang 21）で、clang の引数の最後に `-lz` を足す
+シェルスクリプトを `CC` に指定し、`bend main.bend -o main` で zlib を使う effect をビルドできた。bend はこの `CC` に `--version` も渡して
+clang の版を調べるので、ラッパーは引数をそのまま clang に渡す形にしておく。
+
+```sh
+printf '#!/bin/sh\nexec clang "$@" -lz\n' > cc-lz && chmod +x cc-lz
+CC=$PWD/cc-lz bend main.bend -o main
+```
 
 ### 自作 effect の C 側で zlib を読み込むと、`FAR` マクロがぶつかる
 
 ランタイムの `FAR` マクロと zlib のヘッダーが衝突する。`#pragma push_macro("FAR")`・`#undef FAR`・
-`#pragma pop_macro("FAR")` で囲む。例は `effects/zlib_crc_example.c`（crc32 を呼び、Python と同じ値を得た）。
+`#pragma pop_macro("FAR")` で囲む。例は `effects/zlib_crc_example.c`（crc32 を呼び、Python と同じ値を得た）。macOS でも、標準の zlib にリンクして同じ値を得た
+（`"hello, bend"` で `697224591`）。Bend 側では、effect の def の本体に `import "./zlib_crc.c"` を書く（`bend guide effects`）。
+`-lz` を付けずに `-o` でビルドすると、リンクで `_crc32` が見つからずに失敗する。
 
 `io_cstr` の長さの引数は `u64*`。EFFECTS.md の例は `u32` と読める書き方だが、実物は u64 だった。
 C 側の effect には ABI の保証が無い（文書のみ。「There is no ABI promise」）ので、Bend を更新するたびに作り直す。
