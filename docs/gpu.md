@@ -114,7 +114,7 @@ clang -O3 -std=c11 /tmp/mandel.c -o /tmp/mandel -lpthread -lm
 ## macOS: 2.0.27 なら GPU で走り、答えも合う
 
 2.0.27 の darwin-arm64 版を `~/.bend` とは別の場所に展開し、`BEND_HOME` でそこを指して `bench/mandel.bend` をビルドした。
-答えは 2.0.34 の CPU 版とも、Windows での記録（`bench/results/mandel.tsv`）とも一致した。
+答えは 2.0.34 の CPU 版とも、Windows での記録（`bench/results/ryzen5-3600-wslc/mandel.tsv`）とも一致した。
 
 | 反復回数 | 答え | 2.0.34 の CPU（8 スレッド） | 2.0.27 の CPU（`--gpu off`、8 スレッド） | 2.0.27 の GPU（2 回） |
 |---|---|---|---|---|

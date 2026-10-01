@@ -89,7 +89,9 @@ macOS 26 には `sha256sum` があるので、`web/pong/fetch.sh` もそのま�
 | `!` を含むプログラムのビルド | 2.0.34 では `-o` が失敗する。原因と回避、2.0.27 で GPU を動かした結果は [gpu.md](gpu.md) の「macOS」 |
 | 公式の pong のネイティブのウィンドウ版 | `--gpu off` を付ければ動き、遊べる（下の「pong」の小節） |
 
-`bench/run.sh` は GNU の `date +%N` と CUDA を前提にしていて、Apple clang は `-fopenmp` を受け付けないので、C 版との比較は試していない。
+速さの計測（`bench/run.sh`）は、macOS でも動くように直し、小さな大きさで全部の条件が動くことだけを確かめた。本番の大きさではまだ測っていない。
+C 版には OpenMP が要り、Apple clang は `-fopenmp` を直接は受け付けないので、Homebrew の libomp（`brew install libomp`）を入れる。
+`bench/run.sh` はそれを見つけて使う。
 
 ### `--verdict` は Lean を入れれば Linux と同じく通る
 
@@ -132,22 +134,32 @@ bend web/pong/main.bend -o /tmp/pong    # エラーで終わるが /tmp/pong は
 変わっていて、ゲームが進んでいた。キーの操作は試していない。Windows では表示先が無くてネイティブのウィンドウ版を動かせなかったが
 （[web.md](web.md)）、macOS ではそのまま動く。
 
-### Docker でも動くが、使う利点は無い
+### Docker でも arm64 のまま動くが、素の macOS より遅い
 
-Docker Desktop 29.7.2 の VM は arm64 で、`container/Containerfile` は linux-x64 版の bend を取ってくる。
-そのため `--platform linux/amd64` を付けて x64 のエミュレーションで作る。
+Docker Desktop 29.7.2 の VM は arm64 で、`container/Containerfile` は BuildKit が渡す `TARGETARCH` を見て、arm64 なら linux-arm64 版の bend を、
+amd64 なら linux-x64 版を取る（それぞれの SHA256 を照合する）。`--platform` を付けなければ arm64 で作られ、エミュレーションを通らない。
 
 ```sh
-docker build --platform linux/amd64 -t bend2-slim -f container/Containerfile container
-docker run --rm --platform linux/amd64 -v "$PWD":/work -w /work/server bend2-slim bend PROOF.bend --check-only
+docker build -t bend2-slim -f container/Containerfile container
+docker run --rm -v "$PWD":/work -w /work/server bend2-slim bend PROOF.bend --check-only
 ```
 
-ビルドは 38 秒で、`--check-only` はコンテナの起動を含めて 1.9 秒かかった（素の macOS では 0.1 秒）。
+| 作り方 | ビルド | `--check-only`（コンテナの起動を含む、3 回） |
+|---|---|---|
+| arm64（既定） | 29 秒 | 1.07 秒、0.92 秒、0.97 秒 |
+| `--platform linux/amd64`（x64 のエミュレーション） | 66 秒 | 6.9 秒、6.0 秒、7.0 秒 |
+
+素の macOS では同じ検査が 0.1 秒で済む。amd64 は、Containerfile が x64 版しか取らなかったころに 1 回だけ測ったときは 1.9 秒で、
+今回の 6〜7 秒との差は追っていない。clang 入りの `--target native` も arm64 で作れ（26 秒、`docker image inspect` で 573 MB）、
+`-p 8080:8080` で起動した `server.bend` のネイティブビルドに Mac から 4 経路とも期待どおりに届いた。
 VM に割り当てられていたのは CPU 4・メモリ 4 GB で、GPU 用の `--target gpu` は CUDA が要るので Mac では使えない。
 素の macOS で動かすほうがよい。
 
 Claude Code のサンドボックスの中から `docker build` を実行すると、1 分で `DeadlineExceeded: context deadline exceeded` になった。
 サンドボックスの外で実行すると通った。
+TARGETARCH を見る形に変えたあと、Windows の wslc で作り直してはいない。wslc が `TARGETARCH` を渡さない場合も、空なら x64 版を取るので、
+以前と同じ動きになるはずである（未確認）。
+
 
 ## Windows: wslc のコンテナで動かす
 

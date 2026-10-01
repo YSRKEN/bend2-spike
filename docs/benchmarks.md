@@ -21,10 +21,16 @@ GPU を Windows で動かす方法と、その制限は [gpu.md](gpu.md) にあ�
 - 機: Windows 10、AMD Ryzen 5 3600（6 コア 12 スレッド）、RTX 5060 Ti。wslc のコンテナ（`bend2-gpu` イメージ）の中で測った。環境の詳細は
   [environments.md](environments.md) の「確かめた環境」。
 - 題材と計測のスクリプトは `bench/` にある。`bench/run.sh mandel|threads|nqueens` が、各条件を 2 回ずつ、条件を交互に並べて測る。
-  時間はプロセスの起動から終了まで（GPU では CUDA の初期化と `.gpu` の読み込みを含む）。生の値は `bench/results/` の TSV。
+  時間はプロセスの起動から終了まで（GPU では CUDA の初期化と `.gpu` の読み込みを含む）。生の値は機ごとのフォルダ
+  （この文書の値は `bench/results/ryzen5-3600-wslc/`）の TSV。
 - Bend の CPU は `--gpu off`、GPU は `bench/build-wsl-gpu.sh` でパッチを当てたビルドを `--gpu 1GB --threads 1` で走らせた（[gpu.md](gpu.md)）。
   C は clang 19 の `-O3 -fopenmp`。
 - 表の値は 2 回の計測の両方を載せた。
+
+この文書の値は、`bench/run.sh` が wslc の GPU 用イメージの中でしか動かなかったころの版で測った。いまの `bench/run.sh` は、
+bend が PATH にある環境（Linux、macOS、Containerfile のイメージの中）ならどこでも動き、スレッド数・C 版の OpenMP・GPU（CUDA、
+WSL2 の回避、Metal）を環境から決める。測る条件と行の並びは以前の版と同じにしてあるが、Windows で新しい版を回してはいない。
+macOS（Apple M2）と Docker の Linux では、小さな大きさ（`BENCH_QUICK=1`）で全部の条件が動くことだけを確かめた。
 
 同じ日の別の時間帯に同じ計測をしたところ、CPU の結果が全体に 1.3〜1.8 倍遅く出た（mandelbrot 反復 256 回・1 スレッドで Bend 14.9 秒、C 14.5 秒）。
 同じ回の中の 2 回はよく揃っていたので、機の別の負荷を拾っていたと推定している（未確認）。比べるときは、同じ回の中の値どうしで比べる。
@@ -69,7 +75,7 @@ N クイーンの解の数を、列と 2 本の斜めの利きをビットで持
   葉の中は並列にせず、逐次に数える。C 版（`bench/nqueens.c`）と同じ割り方で、C 版は同じ N×N 通りを OpenMP で並列にする。
 
 計測は 2 回に分けて行い、各回で 2 回ずつ測った。この計測の間は機に別の負荷が掛かっていたとみられ、同じ条件でもばらつきが大きかったので、
-4 回の最小〜最大を載せる（生の値は `bench/results/nqueens.tsv`）。
+4 回の最小〜最大を載せる（生の値は `bench/results/ryzen5-3600-wslc/nqueens.tsv`）。
 
 | N | 条件 | 1 スレッド | 12 スレッド | GPU |
 |---|---|---|---|---|

@@ -10,12 +10,21 @@
 FROM debian:bookworm-slim AS slim
 
 ARG BEND_VER=2.0.34
-ARG BEND_SHA=78106a97af242429dcc057258eb8d10f69cddebcd5e263022185a52d003e09bf
+ARG BEND_SHA_X64=78106a97af242429dcc057258eb8d10f69cddebcd5e263022185a52d003e09bf
+ARG BEND_SHA_ARM64=416a17d282a9fd05ab9637a238b51d5ca508114d9773c37d1c11cad595440ed1
+# TARGETARCH: BuildKit がビルド先の CPU（amd64・arm64）を入れる。Apple Silicon の Docker では arm64 になり、
+# エミュレーションなしで動く。空のとき（BuildKit 以外）は x64 版を取る
+ARG TARGETARCH
 
-RUN apt-get update \
+RUN case "${TARGETARCH:-amd64}" in \
+      amd64) arch=x64; sha="${BEND_SHA_X64}" ;; \
+      arm64) arch=arm64; sha="${BEND_SHA_ARM64}" ;; \
+      *) echo "bend の配布物が無い CPU: ${TARGETARCH}" >&2; exit 1 ;; \
+    esac \
+ && apt-get update \
  && apt-get install -y --no-install-recommends curl ca-certificates \
- && curl -fsSL -o /tmp/bend.tgz "https://github.com/bendlang/bend/releases/download/v${BEND_VER}/bend-${BEND_VER}-linux-x64.tar.gz" \
- && echo "${BEND_SHA}  /tmp/bend.tgz" | sha256sum -c - \
+ && curl -fsSL -o /tmp/bend.tgz "https://github.com/bendlang/bend/releases/download/v${BEND_VER}/bend-${BEND_VER}-linux-${arch}.tar.gz" \
+ && echo "${sha}  /tmp/bend.tgz" | sha256sum -c - \
  && mkdir -p /root/.bend/bin \
  && tar -xzf /tmp/bend.tgz -C /tmp \
  && mv /tmp/bend/bend2 /tmp/bend/guide /root/.bend/ \
