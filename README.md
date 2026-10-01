@@ -2,6 +2,7 @@
 
 [Bend 2](https://github.com/bendlang/bend)（v2.0.34）で、証明付きの小さな HTTP サーバーを書いて動かした記録です。
 Linux（Claude Code のクラウド環境）と、Windows の WSL コンテナ（wslc）の両方で動作を確かめました。
+そのあと macOS（Apple M2）でも、コンテナなしで動くことを確かめました。
 そのあと、Windows の機（Ryzen 5 3600、RTX 5060 Ti）で、Bend の売り文句を一つずつ試しました。
 
 ## 試したこと
@@ -13,6 +14,7 @@ Linux（Claude Code のクラウド環境）と、Windows の WSL コンテナ�
 | GPU はどれだけ速いか | mandelbrot（反復 4096 回）で CPU 12 スレッドの約 8 倍。ただし毎回約 1.7 秒の固定費がある。n-queens では CPU の 7 倍遅い | [docs/benchmarks.md](docs/benchmarks.md) |
 | 並列に走るソートの正しさを証明できるか | できた。parallel let で並列に走るマージソートについて、出力が整列済みで入力の並べ替えであることを証明した（補題 9 個、146 行）。ただし証明向きの比較のせいで遅い | [docs/proofs.md](docs/proofs.md) |
 | 重い計算の最中に、ほかの接続を待たせずに済むか | 済む。計算を区切って `IO.sleep(0)` で譲るか、子プロセスに回す。`IO.fork` では避けられない | [docs/language.md](docs/language.md) |
+| Mac で動くか | GPU 以外は公式インストーラだけで動く。GPU（Metal）は 2.0.34 では Apple のコンパイラが落ちてビルドできず、2.0.27 なら動き、mandelbrot（反復 4096 回）で同じ版の CPU 8 スレッドの約 12 倍速い | [docs/environments.md](docs/environments.md)、GPU は [docs/gpu.md](docs/gpu.md) |
 | ブラウザで動くか | 動く。まとめた JS は 2.1 KB、速さは手書きの JS とほぼ同じで、値もネイティブ版と一致した。画面のあるアプリも、`App.run` の代わりの受け皿を書けば動き、公式の pong が遊べた | [docs/web.md](docs/web.md) |
 
 ## 構成
@@ -34,9 +36,10 @@ Linux（Claude Code のクラウド環境）と、Windows の WSL コンテナ�
 
 ## 動かし方
 
-### Linux
+### Linux・macOS
 
 Bend の導入は [docs/environments.md](docs/environments.md) を参照してください（公式インストーラ、Linux・macOS 用）。
+macOS では、`!` を含むプログラムや、公式の pong のような画面のあるアプリを `-o` でネイティブビルドすると失敗します（2.0.34。原因と回避は [docs/gpu.md](docs/gpu.md) の「macOS」）。
 
 ```sh
 cd server
@@ -92,7 +95,7 @@ wslc build -t bend2-verdict --target verdict -f container/Containerfile containe
 wslc run --rm -v ${PWD}:/work -w /work/server bend2-verdict bend PROOF.bend --verdict
 ```
 
-Linux での Lean の導入は [docs/environments.md](docs/environments.md) にあります。
+Linux と macOS での Lean の導入は [docs/environments.md](docs/environments.md) にあります。
 
 ## もっと知るには
 
@@ -100,8 +103,8 @@ Linux での Lean の導入は [docs/environments.md](docs/environments.md) に�
 |---|---|
 | [docs/language.md](docs/language.md) | Bend を書く人へ。つまずいたこと（例: 重い純粋計算の最中は、ほかの接続がその計算の終わりまで待たされる） |
 | [docs/proofs.md](docs/proofs.md) | 法則と証明を書く人へ。書き方のこつ、毎回の確かめ方、このサーバーで証明したこととしなかったこと |
-| [docs/gpu.md](docs/gpu.md) | GPU を試したい人へ。Windows（wslc）で `!` を GPU に載せる手順と、公式に動かない理由 |
+| [docs/gpu.md](docs/gpu.md) | GPU を試したい人へ。Windows（wslc）で `!` を GPU に載せる手順と公式に動かない理由、macOS の Metal で 2.0.34 が落ちる件と回避 |
 | [docs/benchmarks.md](docs/benchmarks.md) | 速さが気になる人へ。Bend の CPU・GPU と C の比較 |
 | [docs/web.md](docs/web.md) | ブラウザで動かしたい人へ。JS への書き出しと、ページのまとめ方 |
-| [docs/environments.md](docs/environments.md) | 動かす環境を用意する人へ。Linux と Windows（wslc）、何にどれだけ容量が要るか |
+| [docs/environments.md](docs/environments.md) | 動かす環境を用意する人へ。Linux、Windows（wslc）、macOS、何にどれだけ容量が要るか |
 | [docs/claude-code.md](docs/claude-code.md) | このリポジトリを Claude Code で開発する人へ。フックの仕組みとクラウド環境の癖 |

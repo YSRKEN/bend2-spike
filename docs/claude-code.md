@@ -12,12 +12,12 @@ Bend そのものの話は [language.md](language.md) と [proofs.md](proofs.md)
 
 | フック | 動くとき | すること |
 |---|---|---|
-| `.claude/hooks/session-start.sh` | セッションを始めたとき | クラウド環境では Bend 2.0.34 と Lean 4.34.0 を入れ、PATH を通す。Windows では、検査に使う wslc のイメージ（`bend2-slim`、`--verdict` 用の `bend2-verdict`）が無ければ知らせる |
+| `.claude/hooks/session-start.sh` | セッションを始めたとき | クラウド環境では Bend 2.0.34 と Lean 4.34.0 を入れ、PATH を通す。Windows では、検査に使う wslc のイメージ（`bend2-slim`、`--verdict` 用の `bend2-verdict`）が無ければ知らせる。macOS では何もしない |
 | `.claude/hooks/bend-check.sh` | `.bend` ファイルを Write・Edit したとき | `bend --check-only` で検査し、失敗したら Claude に差し戻す |
 | `.claude/hooks/pre-commit-check.sh` | `git commit` を含むコマンドを実行する直前 | 証明と、docs と実物の食い違いを検査し、落ちたら commit を止める |
 
 フックが使われるのは、リポジトリの既定のブランチに入ってからのセッションだけ。
-bend の動かし方（クラウドは bend、Windows は wslc）と JSON の読み書きは、`.claude/hooks/lib-bend.sh` に共通の部品としてまとめてある。
+bend の動かし方（クラウドと macOS は bend、Windows は wslc）と JSON の読み書きは、`.claude/hooks/lib-bend.sh` に共通の部品としてまとめてある。
 
 ### セッション開始のフック: クラウド環境で、版を固定して導入する
 
@@ -45,17 +45,22 @@ bend の動かし方（クラウドは bend、Windows は wslc）と JSON の読
 `PROOF.bend` だけを検査する。
 
 失敗したときは、出力の先頭 25 行（1 行 400 文字まで）を Claude に返し、直させる。成功したときは何も出さない。
-1 回の検査は、クラウド環境で 0.2〜0.6 秒、Windows で 1〜2 秒ほど。
+1 回の検査は、クラウド環境で 0.2〜0.6 秒、Windows で 1〜2 秒ほど、macOS（Apple M2）で 0.24 秒だった。
 
 bend の動かし方は環境で変わる。
 
-- **bend が PATH にある（クラウド環境）**: そのまま使う。
+- **bend が PATH にある（クラウド環境、macOS）**: そのまま使う。`lib-bend.sh` が `~/.bend/bin` と `~/.elan/bin` を PATH に足すので、
+  シェルの設定ファイルに PATH を書いていなくても見つかる。
 - **bend が無く wslc がある（Windows）**: `container/Containerfile` から作ったイメージの中で検査する。既定のイメージ名は `bend2-slim` で、
   環境変数 `BEND_CHECK_IMAGE` で変えられる。イメージが無ければ、作り方を知らせて何もしない。
 - **どちらも無い**: 知らせて何もしない。
 
 入力の JSON は jq で読み、jq が無ければ Python で読む。Windows の Git Bash には jq が無く、以前の版はこのせいで、知らせも出さずに
 何もしていなかった。
+
+bend は 50 秒で打ち切る。macOS には `timeout` コマンドが無いので、`lib-bend.sh` の `with_timeout` が、`timeout`、`gtimeout`
+（Homebrew の coreutils）、perl の `alarm` の順に、あるものを使う。以前の版は `timeout` を直に呼んでいたため、macOS では bend が
+一度も走らず、検査がすべて終了コード 127 で失敗していた（commit 前のフックは、`.bend` を変えた commit をすべて止めていた）。
 
 ### commit 前のフック: 編集後のフックが拾えない変更を、commit の前に拾う
 
@@ -65,20 +70,25 @@ bend の動かし方は環境で変わる。
 - **docs と実物の食い違い**（`.claude/hooks/docs-check.py`）: `LAWS.bend` の法則と `docs/proofs.md` の法則の表が一致するか。
   README と docs の相対リンクの先と、`server/server.bend` のように書いたリポジトリ内のパスが実在するか。
 - **証明**: `.bend` に変更（ステージ済み・未ステージ・未追跡のどれでも）があるときだけ、`PROOF.bend` を `--check-only` で検査する。
-  bend がそのまま使えて Lean もある環境（クラウド）と、wslc に Lean 入りのイメージ `bend2-verdict`（`--target verdict` で作る）がある環境（Windows）では、
-  `--verdict` も走らせる。イメージの名前は環境変数 `BEND_VERDICT_IMAGE` で変えられる。イメージが無ければ、commit は止めずに `--verdict` を飛ばし、そのことを警告として出す（利用者には画面の警告、Claude には文脈として届く）。
+  bend がそのまま使えて Lean もある環境（クラウド、macOS）と、wslc に Lean 入りのイメージ `bend2-verdict`（`--target verdict` で作る）がある環境（Windows）では、
+  `--verdict` も走らせる。イメージの名前は環境変数 `BEND_VERDICT_IMAGE` で変えられる。Lean（またはイメージ）が無ければ、commit は止めずに `--verdict` を飛ばし、そのことを警告として出す（利用者には画面の警告、Claude には文脈として届く）。
+  Lean の有無は PATH の `lean` で見る。elan は既定で `~/.elan` に入るので、`lib-bend.sh` がそこを PATH に足している。
+  以前の版は足していなかったため、`--no-modify-path` で Lean を入れた macOS では、警告も出さずに `--verdict` を飛ばしていた。
 
 どちらの検査も、`.` で始まるフォルダ（`.git`、git の管理から外した作業用の `.scratch` など）の下にある `LAWS.bend`・`PROOF.bend` は見ない。
 公式の demo を手元に写して読むことがあり、それをリポジトリの法則として数えないためである。
 
 検査するのは作業ツリーの中身で、実際に commit されるステージの中身とは限らない。commit と無関係なコマンドでは、
-入力に「commit」という文字が無いことだけを見てすぐに抜ける（Windows で 0.2 秒ほど）。検査するときは、Windows で 1〜4 秒かかった。
+入力に「commit」という文字が無いことだけを見てすぐに抜ける（Windows で 0.2 秒ほど、macOS で 0.02 秒）。検査するときは、Windows で 1〜4 秒、
+macOS で `--verdict` を含めて 0.7 秒かかった。
 
 ## フックが動かないときに確かめること
 
 - **フックを登録したそのセッション**: 登録した後に Edit しても動かなかった。セッションを始めた場所に `.claude/settings.json` が
   無かったためと考えられる（設定の見張りは、開始時に設定ファイルがあった場所だけが対象）。`/hooks` を一度開くか、セッションを始め直す。
 - **Windows**: `wslc image list` に `bend2-slim` があるかを見る。無ければ README の手順で作る。
+- **macOS**: `~/.bend/bin/bend` があるかを見る。`--verdict` が飛ばされるなら、`~/.elan/bin/lean` があるかを見る
+  （導入は [environments.md](environments.md) の「macOS」）。
 
 ## クラウド環境の癖
 
@@ -135,6 +145,18 @@ commit 前のフックと、セッション開始のフックの Windows の分�
 
 実際のセッションでも、`docs/proofs.md` の表を壊して `git commit --dry-run` を実行すると止まり、戻すと通った。
 
+macOS（Apple M2、bend と Lean を `~/.bend`・`~/.elan` に導入、`timeout` なし）では、2026-10-01 に次のように確かめた。
+
+| 入力 | 結果 |
+|---|---|
+| `.bend` に未追跡の変更がある状態での `git commit`（直す前の版） | `--check-only` が終了コード 127 で失敗し、commit を止めた。`--verdict` は試みもしなかった |
+| 同じ入力（直した版） | `server/`・`sort/` の両方で `--check-only` と `--verdict` を走らせて通す（0.7 秒） |
+| 同じ入力で、HOME と PATH から Lean を外した | `--check-only` だけで通し、`--verdict` を飛ばしたと警告する |
+| 正常な `server.bend` の Edit | 出力なし（0.24 秒） |
+| `1n + 1n == 3n` を `{==}` で証明したファイルの Edit | `SOME PROOFS FAIL` と期待値の不一致で差し戻す |
+| `with_timeout 1 sleep 5` | 1 秒で打ち切り、終了コード 142 |
+| セッション開始時（bend が PATH にある） | 何も出さない |
+
 ## 付録: スライドの PDF 化（`docs/bend2-spike-slides.pdf`）
 
 - Playwright の Chromium は、クラウド環境で Google Fonts を読み込めなかった（`document.fonts` が空。プロキシを指定しても同じ）。
@@ -143,4 +165,4 @@ commit 前のフックと、セッション開始のフックの Windows の分�
 
 ---
 
-最終更新: 2026-09-30
+最終更新: 2026-10-01

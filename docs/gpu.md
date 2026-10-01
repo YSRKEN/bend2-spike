@@ -1,12 +1,13 @@
-# Windows の GeForce で Bend の GPU 実行を試す
+# Bend の GPU 実行を試す: Windows の GeForce と macOS の Metal
 
 Bend 2 は `f!(x)` と書いた呼び出しを GPU で走らせる（`bend guide` の「Parallelism」）。この文書は、Windows 10 の wslc のコンテナから
-RTX 5060 Ti でこれを試した記録。数値の比較は [benchmarks.md](benchmarks.md) にある。
+RTX 5060 Ti でこれを試した記録と、macOS（Apple M2）の Metal で試した記録（後半の「macOS」の節）。
+Windows の数値の比較は [benchmarks.md](benchmarks.md) にある。macOS の機の構成は [environments.md](environments.md) にある。
 
 特に断りのない記述は、実際に動かして確かめたこと。ガイドなどの記述だけに基づくものには「（文書のみ）」、
 確かめていないものには「（未確認）」と書いた。
 
-## 結論: 公式の手順では GPU は使われない。パッチを当てると動き、答えも合う
+## Windows: 公式の手順では GPU は使われない。パッチを当てると動き、答えも合う
 
 wslc のコンテナから GPU 自体は見える。ところが bend の実行ファイルは、WSL2 の GPU を「使えない」と判定して、`!` を黙って CPU で走らせる。
 生成された C の判定の 1 行を書き換えると、GPU で走り、CPU と同じ答えを返した。ただし公式には支えられていない使い方である。
@@ -77,6 +78,56 @@ wslc run --rm --gpus all -v ${PWD}:/work -w /work/bench bend2-gpu sh -c "bash bu
 | `LIBRARY_PATH=/usr/local/cuda/lib64/stubs` | ビルド時に `-lcuda` を解決するため。実体は実行時に `--gpus` で持ち込まれる |
 
 bend 本体は最小構成の段からコピーしている。Debian 12 で作った bend を Ubuntu 24.04 で動かしても問題は無かった。
+
+## macOS: Metal で走るはずだが、2.0.34 では Apple のコンパイラが落ちる
+
+ガイドによると、macOS の `!` は Metal で GPU に載る（文書のみ。`bend guide` の「`on macOS it needs Metal`」の箇所）。
+ところが 2.0.34 で `!` を含むプログラムを `-o` でビルドすると、次のエラーで止まった。
+
+```text
+bend: Compilation failed due to an interrupted connection: XPC_ERROR_CONNECTION_INTERRUPTED. This error occurred after multiple retries.
+```
+
+`~/Library/Logs/DiagnosticReports/MTLCompilerService-*.ips` を読むと、Metal のコンパイラサービスが
+`EXC_BAD_ACCESS`（`KERN_INVALID_ADDRESS at 0x0000000000000010`）で落ちていた。落ちた場所は AGXCompilerCore から呼ばれる
+LLVM の `MachineFunctionPass::runOnFunction` で、Bend の不具合として報告済みの
+[bendlang/bend#1154](https://github.com/bendlang/bend/issues/1154)（M2 Pro、macOS 15.7.4、2.0.32 から）と同じスタックだった。
+Claude Code のサンドボックスの外で実行しても同じだったので、サンドボックスが原因ではない。
+
+| 版 | ガイドの最小の例（`pow2!(20n)`） |
+|---|---|
+| 2.0.27 | ビルドでき、GPU で `1048576` を返した |
+| 2.0.31 | 同じクラッシュで失敗 |
+| 2.0.34 | 同じクラッシュで失敗。`./pow2 --gpu off` なら `1048576` |
+
+2.0.28〜2.0.30 は試していない。画面のあるアプリも、Base の `App` が `!` を呼ぶので同じく止まる（[environments.md](environments.md) の pong の小節）。
+
+2.0.34 でも、CPU で走らせるだけなら、C に書き出して自分でビルドすればよい。Metal 用のプログラム（`x.gpu`）は作られず、
+`!` は CPU で走る。
+
+```sh
+bend bench/mandel.bend -o /tmp/mandel.c
+clang -O3 -std=c11 /tmp/mandel.c -o /tmp/mandel -lpthread -lm
+/tmp/mandel 1024
+```
+
+## macOS: 2.0.27 なら GPU で走り、答えも合う
+
+2.0.27 の darwin-arm64 版を `~/.bend` とは別の場所に展開し、`BEND_HOME` でそこを指して `bench/mandel.bend` をビルドした。
+答えは 2.0.34 の CPU 版とも、Windows での記録（`bench/results/mandel.tsv`）とも一致した。
+
+| 反復回数 | 答え | 2.0.34 の CPU（8 スレッド） | 2.0.27 の CPU（`--gpu off`、8 スレッド） | 2.0.27 の GPU（2 回） |
+|---|---|---|---|---|
+| 256 | 797303755 | 2.8 秒 | 2.7 秒 | 0.98 秒、0.42 秒 |
+| 1024 | 2964681653 | 9.1 秒 | 9.6 秒 | 1.4 秒、1.3 秒 |
+| 4096 | 3014046195 | 46.7 秒 | 53.4 秒 | 4.9 秒、4.4 秒 |
+| 16384 | 3182515055 | （未計測） | （未計測） | 16.6 秒 |
+
+2.0.34 の CPU 版は、上の `clang -O3 -std=c11` で作った。時間はプロセスの起動から終了まで、各条件 1 回（GPU だけ 2 回）で、[benchmarks.md](benchmarks.md) のように条件を交互に並べてはいない。
+目安として読む。
+
+2.0.27 の実行ファイルは、`IO.args` の先頭に実行ファイル名を入れない。`mandel.bend` の `iters` は 2 番目の要素を読むので、
+引数の前にダミーを 1 つ置く（`./mandel x 4096`）。置かないと、反復回数が既定の 256 のままになる。
 
 ---
 

@@ -53,6 +53,7 @@ JS の number を F32 の引数に渡すと、関数の中の最初の演算で�
 Bend の `App.run` は、ネイティブビルドでは X11（Linux）か Metal（macOS）のウィンドウを開く。JS に書き出すと、
 `Window.open` は `Window.open: no display (build a native binary ... and run it from a desktop session)` を返すだけの仮の実装になる
 （bend 2.0.34 の `effs/window_open.js`）。wslc のコンテナには WSLg の表示先（`DISPLAY`、`/tmp/.X11-unix`、`/mnt/wslg`）も無かった。
+macOS ではネイティブのウィンドウ版が `--gpu off` を付ければ動いた（[environments.md](environments.md) の「macOS」）。
 
 そこで、`App.run` の代わりをブラウザで書いた（`web/app/host.js`）。`App{view, tick}` の 2 つの関数を毎コマ呼び、
 `view` が返す画像の 4 分木を canvas に塗り、キーとマウスの入力を `Event` の値にして `tick` に渡す。公式の demo
