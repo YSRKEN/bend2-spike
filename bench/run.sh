@@ -12,12 +12,14 @@
 # - CPU のスレッド数: nproc か sysctl で数える。threads で試す数は BENCH_THREADS（例: "1 2 3 4"）で変えられる
 # - C 版: clang -fopenmp を試し、通らなければ（Apple clang）Homebrew の libomp を使う。どちらも無ければ C の行を飛ばす
 # - GPU（BEND_GPU=auto|off）: macOS は Metal、Linux は CUDA。WSL2 では build-wsl-gpu.sh の回避を当てる。
-#   .gpu ができなければ GPU の行を飛ばす（bend 2.0.29〜2.0.34 は M2 の Metal でここに当たる。docs/gpu.md）
+#   .gpu ができなければ GPU の行を飛ばす（bend 2.0.29〜2.0.34 は M2 の Metal でここに当たる。2.0.35 で直った。docs/gpu.md）
+# - bend の版: 既定は ~/.bend。別の版で測るときは BEND_HOME にその版を展開した場所を指定する
 # - GPU 用に別の版の bend を使うときは BEND_GPU_HOME にその BEND_HOME を指定する。2.0.27 のように IO.args の先頭に
 #   実行ファイル名を入れない版では、BEND_GPU_ARGS_PREFIX=x で引数の前にダミーを置く
 set -euo pipefail
 cd "$(dirname "$0")"
-export PATH="$HOME/.bend/bin:$PATH" BEND_NO_TELEMETRY=1
+export BEND_HOME="${BEND_HOME:-$HOME/.bend}" BEND_NO_TELEMETRY=1
+export PATH="$BEND_HOME/bin:$PATH"
 tmp=$(mktemp -d "${TMPDIR:-/tmp}/bend-bench.XXXXXX")
 trap 'rm -rf "$tmp"' EXIT
 note() { echo "[run.sh] $*" >&2; }
@@ -91,7 +93,7 @@ gpu_args=(--threads 1)
 # 空になりうる配列は ${a[@]+"${a[@]}"} で展開する（macOS の bash 3.2 は、set -u で空の配列をエラーにする）
 gpu_pre=(${BEND_GPU_ARGS_PREFIX:-})
 gpu_build() {  # gpu_build <名前>: $tmp/<名前>-gpu を作る。作れなければ 1
-  local home=${BEND_GPU_HOME:-$HOME/.bend}
+  local home=${BEND_GPU_HOME:-$BEND_HOME}
   case $gpu in
     off) return 1 ;;
     cuda-wsl) PATH="$home/bin:$PATH" BEND_HOME="$home" bash build-wsl-gpu.sh "$1.bend" "$tmp/$1-gpu" > /dev/null 2>&1 || return 1 ;;
@@ -112,8 +114,21 @@ build_all() {  # build_all <名前...>
 }
 has() { eval "[ \"\${$1_$2:-0}\" = 1 ]"; }  # has c|g <名前>
 
+# ---- 電源（macOS） ----
+# 省電力モードやバッテリーでは CPU が抑えられ、C まで 1.7 倍遅くなった（2026-10-06、M2）。承知で測るなら BENCH_ALLOW_LOWPOWER=1
+power=""
+if command -v pmset > /dev/null 2>&1; then
+  lpm=$(pmset -g | awk '$1 == "lowpowermode" {print $2}')
+  src=$(pmset -g batt | sed -n "1s/.*'\(.*\)'.*/\1/p")
+  power="、電源: ${src:-?}、lowpowermode: ${lpm:-?}"
+  if { [ "${lpm:-0}" = 1 ] || [ "$src" = "Battery Power" ]; } && [ "${BENCH_ALLOW_LOWPOWER:-0}" != 1 ]; then
+    note "省電力モードかバッテリーで動いている（${power#、}）。AC につなぎ、省電力モードを切ってから測る"
+    exit 1
+  fi
+fi
+
 quick=${BENCH_QUICK:-0}
-note "CPU $ncpu、threads: $threads、GPU: $gpu、OpenMP: ${omp[*]:-なし}${BEND_GPU_HOME:+、GPU 用の bend: $BEND_GPU_HOME}"
+note "$(bend version)${power}、CPU $ncpu、threads: $threads、GPU: $gpu、OpenMP: ${omp[*]:-なし}${BEND_GPU_HOME:+、GPU 用の bend: $BEND_GPU_HOME}"
 printf '題材\t条件\t引数\t答え\tミリ秒\n'
 case ${1:-} in
   mandel)

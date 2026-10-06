@@ -1,0 +1,27 @@
+題材	条件	引数	答え	ミリ秒
+mandel	bend cpu8	0	0	7
+mandel	bend gpu	0	0	412
+mandel	C cpu8	0	0	347
+mandel	bend cpu8	256	797303755	2074
+mandel	bend gpu	256	797303755	416
+mandel	C cpu8	256	797303755	2125
+mandel	bend cpu8	1024	2964681653	8457
+mandel	bend gpu	1024	2964681653	1165
+mandel	C cpu8	1024	2964681653	8637
+mandel	bend cpu8	4096	3014046195	33780
+mandel	bend gpu	4096	3014046195	4262
+mandel	C cpu8	4096	3014046195	34729
+mandel	bend gpu	16384	3182515055	16221
+mandel	bend cpu8	0	0	8
+mandel	bend gpu	0	0	103
+mandel	C cpu8	0	0	9
+mandel	bend cpu8	256	797303755	2100
+mandel	bend gpu	256	797303755	377
+mandel	C cpu8	256	797303755	2135
+mandel	bend cpu8	1024	2964681653	8486
+mandel	bend gpu	1024	2964681653	1151
+mandel	C cpu8	1024	2964681653	9100
+mandel	bend cpu8	4096	3014046195	34543
+mandel	bend gpu	4096	3014046195	4302
+mandel	C cpu8	4096	3014046195	35320
+mandel	bend gpu	16384	3182515055	16198

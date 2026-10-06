@@ -18,7 +18,7 @@ Linux（Claude Code のクラウド環境）と、Windows の WSL コンテナ�
 | [docs/ai-proofs.md](docs/ai-proofs.md) |
 | 証明付きのサーバーは実用の速さか | 最小のサーバーで毎秒 1.7〜2.0 万件。Go の 8 割前後で、Node.js の 2.5 倍以上 | [docs/benchmarks.md](docs/benchmarks.md) |
 | 重い計算の最中に、ほかの接続を待たせずに済むか | 済む。計算を区切って `IO.sleep(0)` で譲るか、子プロセスに回す。`IO.fork` では避けられない | [docs/language.md](docs/language.md) |
-| Mac で動くか | GPU 以外は公式インストーラだけで動く。GPU（Metal）は 2.0.34 では Apple のコンパイラが落ちてビルドできず、2.0.27 なら動き、mandelbrot（反復 4096 回）で同じ版の CPU 8 スレッドの約 12 倍速い | [docs/environments.md](docs/environments.md)、GPU は [docs/gpu.md](docs/gpu.md) |
+| Mac で動くか | 公式インストーラだけで動く。GPU（Metal）は 2.0.34 では Apple のコンパイラが落ちてビルドできなかったが、2.0.35 で直った。M2 で mandelbrot（反復 4096 回）が CPU 8 スレッドの約 8 倍速く、以前 2.0.27 の GPU で macOS に打ち切られた長い仕事も最後まで走った | [docs/environments.md](docs/environments.md)、GPU は [docs/gpu.md](docs/gpu.md) |
 | ブラウザで動くか | 動く。まとめた JS は 2.1 KB、速さは手書きの JS とほぼ同じで、値もネイティブ版と一致した。画面のあるアプリも、`App.run` の代わりの受け皿を書けば動き、公式の pong が遊べた | [docs/web.md](docs/web.md) |
 | 証明付きで実用の道具を書けるか | 書けた。メールボックスを読む MCP サーバーを、UTF-8・JSON・mbox・見出しの符号化語の 31 個の法則の証明付きで書き、223 MB の受信箱から 500 件を 7 秒前後で返した。ただし実際に見つかった不具合は、証明ではなく外の実装（Python の `json` など）との突き合わせが捕まえた。リポジトリは非公開で、分かったことだけを載せた | [docs/mcp-app.md](docs/mcp-app.md) |
 
@@ -45,7 +45,7 @@ Linux（Claude Code のクラウド環境）と、Windows の WSL コンテナ�
 ### Linux・macOS
 
 Bend の導入は [docs/environments.md](docs/environments.md) を参照してください（公式インストーラ、Linux・macOS 用）。
-macOS では、`!` を含むプログラムや、公式の pong のような画面のあるアプリを `-o` でネイティブビルドすると失敗します（2.0.34。原因と回避は [docs/gpu.md](docs/gpu.md) の「macOS」）。
+macOS では、`!` を含むプログラムや、公式の pong のような画面のあるアプリを `-o` でネイティブビルドすると失敗します（2.0.34。原因と回避は [docs/gpu.md](docs/gpu.md) の「macOS」）。2.0.35 では通ります。
 
 ```sh
 cd server
@@ -109,7 +109,7 @@ Linux と macOS での Lean の導入は [docs/environments.md](docs/environment
 |---|---|
 | [docs/language.md](docs/language.md) | Bend を書く人へ。つまずいたこと（例: 重い純粋計算の最中は、ほかの接続がその計算の終わりまで待たされる） |
 | [docs/proofs.md](docs/proofs.md) | 法則と証明を書く人へ。書き方のこつ、毎回の確かめ方、このサーバーで証明したこととしなかったこと |
-| [docs/gpu.md](docs/gpu.md) | GPU を試したい人へ。Windows（wslc）で `!` を GPU に載せる手順と公式に動かない理由、macOS の Metal で 2.0.34 が落ちる件と回避 |
+| [docs/gpu.md](docs/gpu.md) | GPU を試したい人へ。Windows（wslc）で `!` を GPU に載せる手順と公式に動かない理由、macOS の Metal で 2.0.34 が落ちる件と回避、2.0.35 で直った結果 |
 | [docs/benchmarks.md](docs/benchmarks.md) | 速さが気になる人へ。Bend の CPU・GPU と C の比較 |
 | [docs/web.md](docs/web.md) | ブラウザで動かしたい人へ。JS への書き出しと、ページのまとめ方 |
 | [docs/ai-proofs.md](docs/ai-proofs.md) | AI に証明を書かせたい人へ。4 モデル × 4 題 × 2 回の結果と、証明が通っても見落とすもの |

@@ -86,8 +86,8 @@ macOS 26 には `sha256sum` があるので、`web/pong/fetch.sh` もそのま�
 | `bend PROOF.bend --verdict`（`server/`・`sort/`） | どちらも `ALL PROOFS CHECK`。カーネルのビルドを含む初回は 18.7 秒、2 回目からは 0.14〜0.26 秒（下の小節） |
 | `concurrency/stall.bend` の 4 経路（深さ 30） | Windows と同じ傾向。pure と fork では最中の `/` が 0.46 秒待たされ、step と proc では待たされない |
 | `bend web/index.html -o web/dist`、pong のまとめ | どちらもでき、ブラウザで描かれた。コンソールのエラーは無し |
-| `!` を含むプログラムのビルド | 2.0.34 では `-o` が失敗する。原因と回避、2.0.27 で GPU を動かした結果は [gpu.md](gpu.md) の「macOS」 |
-| 公式の pong のネイティブのウィンドウ版 | `--gpu off` を付ければ動き、キーで遊べる（下の「pong」の小節） |
+| `!` を含むプログラムのビルド | 2.0.34 では `-o` が失敗する。原因と回避、2.0.27 で GPU を動かした結果は [gpu.md](gpu.md) の「macOS」。2.0.35 では通り、GPU で走る（2026-10-06） |
+| 公式の pong のネイティブのウィンドウ版 | 2.0.34 では `--gpu off` を付ければ動き、キーで遊べる（下の「pong」の小節）。2.0.35 では付けずに動く |
 
 速さの計測（`bench/run.sh`）は macOS でも動く。M2 で測った結果は [benchmarks.md](benchmarks.md) の「macOS（Apple M2）」にある。
 C 版には OpenMP が要り、Apple clang は `-fopenmp` を直接は受け付けないので、Homebrew の libomp（`brew install libomp`）を入れる。
@@ -116,6 +116,9 @@ bend は Lean を PATH から探さず、`~/.elan/toolchains/` の下の `lean` 
 Lean のカーネルが誤りを捕まえるところまでは確かめていない。
 
 ### pong はネイティブのウィンドウで動く。GPU は切っておく
+
+> 2026-10-06 追記: 2.0.35 では GPU を切らずに動いた。`bend web/pong/main.bend -o pong` がエラーなしで終わって `pong.gpu` ができ、
+> `./pong` でウィンドウが開いてボールが動いた（[gpu.md](gpu.md) の「macOS: 2.0.35 で M2 の GPU が戻った」）。この小節は 2.0.34 の記録。
 
 公式の pong（`web/pong/fetch.sh` で取ってくる `main.bend`）は、自分では `!` を書いていないのに、ネイティブビルドが Metal のエラー（[gpu.md](gpu.md) の「macOS」）で止まった。
 画面を受け持つ Base の `App` が、コマごとに `Image.drop!` を呼ぶためである（`bend base App` で確かめた）。
@@ -224,4 +227,4 @@ curl が終了コード 60 で止まった。確認のときだけ CA を足し�
 
 ---
 
-最終更新: 2026-10-01
+最終更新: 2026-10-06
