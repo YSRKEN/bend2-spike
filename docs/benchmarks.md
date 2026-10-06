@@ -116,7 +116,7 @@ GPU の 16,384 レーンのほとんどが遊ぶうえ、各レーンが別々�
 
 Apple M2（高性能コア 4・高効率コア 4、16 GB）の macOS 26.6.2 で、いまの `bench/run.sh` を回した（2026-10-01）。C は Apple clang 21 に
 Homebrew の libomp。GPU は、2.0.34 では Metal のコンパイラが落ちるので（[gpu.md](gpu.md) の「macOS」）、2.0.27 を `BEND_GPU_HOME` で指して使った。
-生の値は `bench/results/m2-macos/`。
+生の値は `bench/results/m2-macos/2.0.34/`。
 
 Mac を使っている最中に測ったので、条件を次のように揃えた。題材の前ごとに、`top` で測った CPU の空きが 80% 以上の状態が 30 秒続くのを待ち、
 Docker Desktop は止めた。それでも画面の描画（`WindowServer`）や Claude のアプリが合わせて CPU の 2 割ほどを使っていた。最初は空き 90% を
@@ -165,7 +165,7 @@ Ryzen と同じく、GPU が CPU より 1 桁以上遅い。答えはどれも C
 mandelbrot の反復 4,096 回と、n-queens 15 の 2 回目の GPU は、`bend: Impacting Interactivity
 (0000000e:kIOGPUCommandBufferCallbackErrorImpactingInteractivity)` で止まった。GPU の 1 回の仕事が長く、画面の描画と取り合った
 ために macOS が打ち切ったと推定している。午前に手で回したときは、反復 4,096 回が 4.4〜4.9 秒で通っていた（[gpu.md](gpu.md)）。
-打ち切られた回の値は、その手前までを `bench/results/m2-macos/*-gpu.tsv` に残した。
+打ち切られた回の値は、その手前までを `bench/results/m2-macos/2.0.34/*-gpu.tsv` に残した。
 
 ## レイトレーサー: GPU は CPU 12 スレッドの約半分の速さ
 

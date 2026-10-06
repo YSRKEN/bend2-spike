@@ -344,7 +344,7 @@ Base の `List.merge` は停止のために燃料を持つが、`sort/` の `mer
 AI に書かせた実験でも、値が等しいかを自前の再帰で判定した実装だけが遅かった（[ai-proofs.md](ai-proofs.md) の連長圧縮）。
 比較は Base の関数を使い、証明の側で「Base の比較の結果が何を意味するか」を補題で示すのが安全と考える。
 
-最初の版について、macOS（Apple M2）でも測った（生の値は `bench/results/m2-macos/sort.tsv`）。
+最初の版について、macOS（Apple M2）でも測った（生の値は `bench/results/m2-macos/2.0.34/sort.tsv`）。
 
 | 入力の個数 | 1 スレッド | 8 スレッド |
 |---|---|---|
