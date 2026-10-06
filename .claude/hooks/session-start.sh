@@ -23,9 +23,9 @@ if [ "${CLAUDE_CODE_REMOTE:-}" != "true" ]; then
   exit 0
 fi
 
-BEND_VER="2.0.34"
-BEND_SHA="78106a97af242429dcc057258eb8d10f69cddebcd5e263022185a52d003e09bf"  # linux-x64
-LEAN_TOOLCHAIN="leanprover/lean4:v4.34.0"  # bend 2.0.34 の --verdict が要求する版
+BEND_VER="2.0.35"
+BEND_SHA="63039d1a119f716767ac5a7d8fe0717cfacf219c6c253c35192148e0dade722f"  # linux-x64
+LEAN_TOOLCHAIN="leanprover/lean4:v4.34.0"  # bend 2.0.35 の --verdict が要求する版（2.0.34 と同じ）
 
 BEND_HOME="$HOME/.bend"
 ELAN_HOME_DIR="$HOME/.elan"

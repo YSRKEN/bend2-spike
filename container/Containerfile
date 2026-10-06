@@ -9,9 +9,9 @@
 # bend は glibc に動的リンクしているので、musl の Alpine では動かない。Debian slim を使う。
 FROM debian:bookworm-slim AS slim
 
-ARG BEND_VER=2.0.34
-ARG BEND_SHA_X64=78106a97af242429dcc057258eb8d10f69cddebcd5e263022185a52d003e09bf
-ARG BEND_SHA_ARM64=416a17d282a9fd05ab9637a238b51d5ca508114d9773c37d1c11cad595440ed1
+ARG BEND_VER=2.0.35
+ARG BEND_SHA_X64=63039d1a119f716767ac5a7d8fe0717cfacf219c6c253c35192148e0dade722f
+ARG BEND_SHA_ARM64=09b813073241628f590f2c2fe420299ec25e4dddd6cf3fdc49c9486339989564
 # TARGETARCH: BuildKit がビルド先の CPU（amd64・arm64）を入れる。Apple Silicon の Docker では arm64 になり、
 # エミュレーションなしで動く。空のとき（BuildKit 以外）は x64 版を取る
 ARG TARGETARCH

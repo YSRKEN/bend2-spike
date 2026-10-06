@@ -19,6 +19,8 @@ wslc のコンテナから GPU 自体は見える。ところが bend の実行�
 | `./x --gpu on` | `bend: --gpu on, but this binary found no usable GPU (a CUDA GPU needs concurrent managed access, which WSL2's lack)` で終了コード 1 |
 | 判定を外したビルド（`bench/build-wsl-gpu.sh`）で `./x --gpu 1GB` | GPU で走り、CPU・C と同じ答え。`--threads 1` にしても速いままなので、計算は GPU でしている |
 
+表は 2.0.34 で確かめた。2026-10-07 に 2.0.35 でも、パッチなしの `--gpu on` が同じエラー文で止まり、同じ 1 行の書き換えで GPU で走ることを確かめた。
+
 ## GPU を使わない理由: WSL2 には concurrent managed access が無い
 
 bend のランタイムは、CPU と GPU が一つのヒープを共有する設計で、CUDA では managed memory（`cuMemAllocManaged`）を使う。
@@ -124,7 +126,7 @@ clang -O3 -std=c11 /tmp/mandel.c -o /tmp/mandel -lpthread -lm
 ## macOS: 2.0.27 なら GPU で走り、答えも合う
 
 2.0.27 の darwin-arm64 版を `~/.bend` とは別の場所に展開し、`BEND_HOME` でそこを指して `bench/mandel.bend` をビルドした。
-答えは 2.0.34 の CPU 版とも、Windows での記録（`bench/results/ryzen5-3600-wslc/mandel.tsv`）とも一致した。
+答えは 2.0.34 の CPU 版とも、Windows での記録（`bench/results/ryzen5-3600-wslc/2.0.34/mandel.tsv`）とも一致した。
 
 | 反復回数 | 答え | 2.0.34 の CPU（8 スレッド） | 2.0.27 の CPU（`--gpu off`、8 スレッド） | 2.0.27 の GPU（2 回） |
 |---|---|---|---|---|
@@ -172,4 +174,4 @@ macOS に打ち切られ、計測がそこで止まったが、2.0.35 では 4,0
 
 ---
 
-最終更新: 2026-10-06
+最終更新: 2026-10-07

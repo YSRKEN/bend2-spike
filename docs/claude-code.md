@@ -12,7 +12,7 @@ Bend そのものの話は [language.md](language.md) と [proofs.md](proofs.md)
 
 | フック | 動くとき | すること |
 |---|---|---|
-| `.claude/hooks/session-start.sh` | セッションを始めたとき | クラウド環境では Bend 2.0.34 と Lean 4.34.0 を入れ、PATH を通す。Windows では、検査に使う wslc のイメージ（`bend2-slim`、`--verdict` 用の `bend2-verdict`）が無ければ知らせる。macOS では何もしない |
+| `.claude/hooks/session-start.sh` | セッションを始めたとき | クラウド環境では Bend 2.0.35 と Lean 4.34.0 を入れ、PATH を通す。Windows では、検査に使う wslc のイメージ（`bend2-slim`、`--verdict` 用の `bend2-verdict`）が無ければ知らせる。macOS では何もしない |
 | `.claude/hooks/bend-check.sh` | `.bend` ファイルを Write・Edit したとき | `bend --check-only` で検査し、失敗したら Claude に差し戻す |
 | `.claude/hooks/pre-commit-check.sh` | `git commit` を含むコマンドを実行する直前 | 証明と、docs と実物の食い違いを検査し、落ちたら commit を止める |
 
@@ -25,7 +25,7 @@ bend の動かし方（クラウドと macOS は bend、Windows は wslc）と J
 検査用のイメージが無いときだけ、作り方を知らせる。
 クラウドのコンテナは回収されると `~/.bend`・`~/.elan` が消えるので、セッションのたびに入れ直す必要がある。そのためのフック。
 
-1. Bend 2.0.34 を入れる。公式インストーラは最新版を入れるので使わず、同じ手順（tarball の取得、SHA256 の照合、`~/.bend` への配置）を
+1. Bend 2.0.35 を入れる。公式インストーラは最新版を入れるので使わず、同じ手順（tarball の取得、SHA256 の照合、`~/.bend` への配置）を
    フックの中で行う。SHA256 が合わなければ何も置かずに終了コード 1 で止まる。
 2. clang が無ければ警告だけ出す。
 3. elan で Lean v4.34.0 を入れる。
@@ -174,4 +174,4 @@ macOS（Apple M2、bend と Lean を `~/.bend`・`~/.elan` に導入、`timeout`
 
 ---
 
-最終更新: 2026-10-01
+最終更新: 2026-10-07

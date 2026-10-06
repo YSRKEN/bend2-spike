@@ -193,10 +193,11 @@ JSON の配列を `JArr{xs: List<&2, J>}` と書き、`size(JArr{rest})` と組�
 最後の行のとおり、カーネルが保証するのは「渡された定義のもとで証明が正しい」ことまでで、定義や法則が意図どおりに訳されたかは保証しない。
 ガイドの「the translation has no proof, so read it to confirm a law」はこのことを言っている。
 
-### bend2 は通すがカーネルは拒む例が、2.0.34 にもある
+### bend2 は通すがカーネルは拒む例が、2.0.35 にもある
 
 [bendlang/bend#1167](https://github.com/bendlang/bend/issues/1167)（未解決）の例は、2.0.34 でも `--check-only` が通り、`--verdict` が
-「TypeScript の実装と形式化されたカーネルの食い違い」という知らせ付きで `SOME PROOFS FAIL` になった。構成子を組み直して自分を呼ぶ再帰
+「TypeScript の実装と形式化されたカーネルの食い違い」という知らせ付きで `SOME PROOFS FAIL` になった。2026-10-07 に Windows（wslc）の
+2.0.35 でも同じ結果になった。構成子を組み直して自分を呼ぶ再帰
 （`height(Node{rest})`）で、issue のコメントでは、bend2 が通す形は実際には必ず小さくなるので、偽を通したのではなくカーネルの規則が
 狭いだけと分析されている。
 
@@ -209,7 +210,9 @@ JSON の配列を `JArr{xs: List<&2, J>}` と書き、`size(JArr{rest})` と組�
 
 [bendlang/bend#1186](https://github.com/bendlang/bend/issues/1186)（未解決）の穴も 2.0.34 で再現した。構成子の無い型の `~` 引数を
 持つ def は、カーネルへの入力に載らず、範囲外とも報告されない。上の #1167 と同じ再帰をこの def の中に書くと、`--verdict` が
-`ALL PROOFS CHECK` を出した。`~v: Void` を外しただけの同じ本体は、カーネルに渡って拒まれる。
+`ALL PROOFS CHECK` を出した。`~v: Void` を外しただけの同じ本体は、カーネルに渡って拒まれる。2.0.35 のリリースノートには
+「空の型が `D.efq : D -> <>` 付きでカーネルに渡る」（#1183）という修正があるが、2026-10-07 に Windows（wslc）の 2.0.35 で試すと、
+下の def はやはり `ALL PROOFS CHECK` になった。
 
 ```python
 type Void is Data:
@@ -312,7 +315,7 @@ Base の `List.merge` は停止のために燃料を持つが、`sort/` の `mer
 
 最初の版は遅く、入力が倍になると約 4 倍かかった。比較を Base の `Nat.is_le` に替えた今の版は、次のとおり（Windows の wslc、
 ネイティブビルド、`--gpu off`。`bench/run.sh sort` で測った。時間は入力の生成と結果の検査を含む実時間。生の値は
-`bench/results/ryzen5-3600-wslc/sort.tsv`）。
+`bench/results/ryzen5-3600-wslc/2.0.34/sort.tsv`）。
 
 | 入力の個数 | 1 スレッド | 12 スレッド | 最初の版（1 スレッド） | 最初の版（12 スレッド） |
 |---|---|---|---|---|
@@ -357,4 +360,4 @@ M2 でも、入力が倍になると約 4 倍かかった。1 スレッドの時
 
 ---
 
-最終更新: 2026-10-02
+最終更新: 2026-10-07

@@ -1,0 +1,13 @@
+題材	条件	引数	答え	ミリ秒
+sort	bend cpu1	2^15	sorted	16
+sort	bend cpu12	2^15	sorted	9
+sort	bend cpu1	2^16	sorted	29
+sort	bend cpu12	2^16	sorted	16
+sort	bend cpu1	2^17	sorted	58
+sort	bend cpu12	2^17	sorted	28
+sort	bend cpu1	2^15	sorted	16
+sort	bend cpu12	2^15	sorted	11
+sort	bend cpu1	2^16	sorted	30
+sort	bend cpu12	2^16	sorted	15
+sort	bend cpu1	2^17	sorted	57
+sort	bend cpu12	2^17	sorted	24

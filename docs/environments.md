@@ -14,7 +14,7 @@ Linux と macOS では公式インストーラをそのまま使い、Windows �
 | CPU | Intel Xeon Processor @ 2.10GHz（`lscpu` の表記。KVM 上の仮想 CPU、1 ソケット 4 コア、1 コア 1 スレッド） | AMD Ryzen 5 3600（6 コア 12 スレッド、定格 3.6 GHz） | Apple M2（高性能 4 コア、高効率 4 コア） |
 | 使える CPU | 4（`nproc`）。cgroup による CPU の上限はなし（`cpu.cfs_quota_us` が -1） | コンテナから 12（`nproc`） | 8（`hw.ncpu`） |
 | メモリ | 約 15.7 GiB（`MemTotal` 16,480,972 kB）、スワップなし。シェルのプロセスには cgroup で約 13.4 GiB（14,345,035,776 バイト）の上限 | 64 GB。コンテナから見えるのは約 31 GiB（WSL の既定で、機のメモリの半分と推定） | 16 GB |
-| GPU | なし（`nvidia-smi` が無い） | NVIDIA GeForce RTX 5060 Ti。`--gpus all` でコンテナから見える（[gpu.md](gpu.md)） | M2 の GPU（10 コア、Metal 4）。bend 2.0.34 では使えない（[gpu.md](gpu.md)） |
+| GPU | なし（`nvidia-smi` が無い） | NVIDIA GeForce RTX 5060 Ti。`--gpus all` でコンテナから見える（[gpu.md](gpu.md)） | M2 の GPU（10 コア、Metal 4）。bend 2.0.34 では使えず、2.0.35 で使えるようになった（[gpu.md](gpu.md)） |
 | clang | 18.1.3 | 14.0.6（`--target native` のイメージ） | Apple clang 21.0.0（Xcode 同梱） |
 | Lean | 4.34.0 | 4.34.0（`--target verdict` のイメージ） | 4.34.0（elan で `~/.elan` に導入） |
 
@@ -31,7 +31,7 @@ cgroup v1 の `memory.limit_in_bytes` と `cpu.cfs_quota_us`。cgroup v2 の `cp
 
 | やりたいこと | 要るもの | 大きさ |
 |---|---|---|
-| 実行する（`bend x.bend`）、証明を検査する（`--check-only`） | bend 本体だけ（依存は glibc のみ） | 91 MB |
+| 実行する（`bend x.bend`）、証明を検査する（`--check-only`） | bend 本体だけ（依存は glibc のみ） | 80 MB（2.0.35。`du -sh ~/.bend` で測った。同じ測り方で 2.0.34 は 92 MB） |
 | ネイティブビルドする（`bend x.bend -o x`） | 上に加えて clang 14 以上 | clang 一式で約 197 MB |
 | Lean で証明を再検査する（`--verdict`） | 上に加えて Lean v4.34.0 | 2.9 GB |
 
@@ -190,10 +190,10 @@ GPU 用の `--target gpu` もあり、使い方と制限は [gpu.md](gpu.md) に
 
 | イメージ | 入っているもの | `wslc image list` での大きさ | 初回のビルド |
 |---|---|---|---|
-| 最小構成（例: `bend2-slim`） | bend | 179 MB | （未計測） |
-| `--target native`（例: `bend2-native`） | bend、clang 14.0.6 | 565 MB | 40 秒 |
+| 最小構成（例: `bend2-slim`） | bend | 167 MB（2.0.34 では 179 MB） | （未計測） |
+| `--target native`（例: `bend2-native`） | bend、clang 14.0.6 | 553 MB（2.0.34 では 565 MB） | 40 秒 |
 | `--target verdict`（例: `bend2-verdict`） | bend、Lean 4.34.0（elan で導入）、ビルド済みのカーネル | 3.35 GB | 127 秒 |
-| `--target gpu`（例: `bend2-gpu`） | bend、clang 19.1.1、CUDA 12.9 の NVRTC と cuda.h、libomp。ベースは nvidia/cuda の Ubuntu 24.04 | 1.5 GB | 92 秒（libomp を足す前の版） |
+| `--target gpu`（例: `bend2-gpu`） | bend、clang 19.1.1、CUDA 12.9 の NVRTC と cuda.h、libomp。ベースは nvidia/cuda の Ubuntu 24.04 | 1.49 GB | 92 秒（libomp を足す前の版） |
 
 最小構成で `--check-only` を 1 回走らせると、コンテナの起動を含めて約 0.8 秒かかる。
 
@@ -227,4 +227,4 @@ curl が終了コード 60 で止まった。確認のときだけ CA を足し�
 
 ---
 
-最終更新: 2026-10-06
+最終更新: 2026-10-07

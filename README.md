@@ -1,6 +1,6 @@
 # Bend 2 検証
 
-[Bend 2](https://github.com/bendlang/bend)（v2.0.34）で、証明付きの小さな HTTP サーバーを書いて動かした記録です。
+[Bend 2](https://github.com/bendlang/bend)（v2.0.35。記録の多くは v2.0.34 で取り、2.0.35 に上げたときに Windows と Mac の両方で測り直した）で、証明付きの小さな HTTP サーバーを書いて動かした記録です。
 Linux（Claude Code のクラウド環境）と、Windows の WSL コンテナ（wslc）の両方で動作を確かめました。
 そのあと macOS（Apple M2）でも、コンテナなしで動くことを確かめました。
 そのあと、Windows の機（Ryzen 5 3600、RTX 5060 Ti）で、Bend の売り文句を一つずつ試しました。
@@ -10,12 +10,11 @@ Linux（Claude Code のクラウド環境）と、Windows の WSL コンテナ�
 | 問い | 答え | 詳しく |
 |---|---|---|
 | Windows の GeForce で `!`（GPU 実行）は動くか | 公式の手順では動かない（WSL2 に concurrent managed access が無く、黙って CPU で走る）。生成した C の判定を 1 行外すと動き、答えも合う | [docs/gpu.md](docs/gpu.md) |
-| 「C 並みの速さ」は本当か | mandelbrot では C とほぼ同じ速さで、スレッド数にも同じように伸びる。n-queens では C の 3〜4 倍遅く、仕事を均等に割らないとスレッド数に伸びない。Apple M2 でも同じ傾向 | [docs/benchmarks.md](docs/benchmarks.md) |
+| 「C 並みの速さ」は本当か | mandelbrot では C とほぼ同じ速さで、スレッド数にも同じように伸びる。n-queens では C の 3〜4 倍遅く、仕事を均等に割らないとスレッド数に伸びない。Apple M2 でも同じ傾向。2.0.35 では、仕事を割らない素直な版の並列だけが速くなった（Ryzen の 12 スレッドで約 2 割、M2 の 8 スレッドで約 3 割） | [docs/benchmarks.md](docs/benchmarks.md) |
 | GPU はどれだけ速いか | mandelbrot（反復 4096 回）で CPU 12 スレッドの約 8 倍。ただし毎回約 1.7 秒の固定費がある。n-queens では CPU の 7 倍遅い。公式のレイトレーサーでは CPU 12 スレッドの約半分の速さ | [docs/benchmarks.md](docs/benchmarks.md) |
 | 並列に走るソートの正しさを証明できるか | できた。parallel let で並列に走るマージソートについて、出力が整列済みで入力の並べ替えであることを証明した。最初の版は自前の比較のせいで遅かったが、法則を変えずに実装を Base の比較に替えて証明し直し、2^17 個が 30 秒から 65 ms になった | [docs/proofs.md](docs/proofs.md) |
-| `--verdict`（Lean のカーネル）は証明の誤りを捕まえるか | カーネル自体は捕まえる。手で偽に書き換えた主張も、停止しない自己参照や循環による「証明」も拒んだ。ただし定義のすり替えは見抜けず、2.0.34 には `--verdict` がカーネルに見せないまま通す def もある（bendlang/bend#1186）。法則がカーネルに渡っていることは commit 前のフックで確かめる | [docs/proofs.md](docs/proofs.md) |
-| AI に法則だけ渡して、実装と証明を書かせられるか | 4 題を 2 回ずつ解かせ、Sonnet・Opus・Fable は 8/8 で Lean のカーネルでも通った。Haiku は 0/8 で、禁じた `@unsafe` や `?TODO` にも手を出した。ただし合格した 24 本のうち 7 本は、指数時間や 2 乗の遅い実装だった（法則は速さを縛らない） | [docs/mcp-app.md](docs/mcp-app.md) | 証明付きで実用の道具を書きたい人へ。核と殻の分け方、証明を通すための設計、証明と試験がそれぞれ捕まえたもの、速さ |
-| [docs/ai-proofs.md](docs/ai-proofs.md) |
+| `--verdict`（Lean のカーネル）は証明の誤りを捕まえるか | カーネル自体は捕まえる。手で偽に書き換えた主張も、停止しない自己参照や循環による「証明」も拒んだ。ただし定義のすり替えは見抜けず、2.0.35 にも `--verdict` がカーネルに見せないまま通す def がある（bendlang/bend#1186）。法則がカーネルに渡っていることは commit 前のフックで確かめる | [docs/proofs.md](docs/proofs.md) |
+| AI に法則だけ渡して、実装と証明を書かせられるか | 4 題を 2 回ずつ解かせ、Sonnet・Opus・Fable は 8/8 で Lean のカーネルでも通った。Haiku は 0/8 で、禁じた `@unsafe` や `?TODO` にも手を出した。ただし合格した 24 本のうち 7 本は、指数時間や 2 乗の遅い実装だった（法則は速さを縛らない） | [docs/ai-proofs.md](docs/ai-proofs.md) |
 | 証明付きのサーバーは実用の速さか | 最小のサーバーで毎秒 1.7〜2.0 万件。Go の 8 割前後で、Node.js の 2.5 倍以上 | [docs/benchmarks.md](docs/benchmarks.md) |
 | 重い計算の最中に、ほかの接続を待たせずに済むか | 済む。計算を区切って `IO.sleep(0)` で譲るか、子プロセスに回す。`IO.fork` では避けられない | [docs/language.md](docs/language.md) |
 | Mac で動くか | 公式インストーラだけで動く。GPU（Metal）は 2.0.34 では Apple のコンパイラが落ちてビルドできなかったが、2.0.35 で直った。M2 で mandelbrot（反復 4096 回）が CPU 8 スレッドの約 8 倍速く、以前 2.0.27 の GPU で macOS に打ち切られた長い仕事も最後まで走った | [docs/environments.md](docs/environments.md)、GPU は [docs/gpu.md](docs/gpu.md) |
@@ -78,7 +77,7 @@ curl.exe http://127.0.0.1:8080/hello/Bend
 wslc stop bend-server
 ```
 
-ネイティブビルドには clang 入りのイメージを使います（約 565 MB）。接続と停止は上と同じです。
+ネイティブビルドには clang 入りのイメージを使います（約 555 MB）。接続と停止は上と同じです。
 
 ```powershell
 wslc build -t bend2-native --target native -f container/Containerfile container
@@ -113,5 +112,6 @@ Linux と macOS での Lean の導入は [docs/environments.md](docs/environment
 | [docs/benchmarks.md](docs/benchmarks.md) | 速さが気になる人へ。Bend の CPU・GPU と C の比較 |
 | [docs/web.md](docs/web.md) | ブラウザで動かしたい人へ。JS への書き出しと、ページのまとめ方 |
 | [docs/ai-proofs.md](docs/ai-proofs.md) | AI に証明を書かせたい人へ。4 モデル × 4 題 × 2 回の結果と、証明が通っても見落とすもの |
+| [docs/mcp-app.md](docs/mcp-app.md) | 証明付きで実用の道具を書きたい人へ。核と殻の分け方、証明を通すための設計、証明と試験がそれぞれ捕まえたもの、速さ |
 | [docs/environments.md](docs/environments.md) | 動かす環境を用意する人へ。Linux、Windows（wslc）、macOS、何にどれだけ容量が要るか |
 | [docs/claude-code.md](docs/claude-code.md) | このリポジトリを Claude Code で開発する人へ。フックの仕組みとクラウド環境の癖 |
