@@ -1,6 +1,6 @@
 # Bend 2 検証
 
-[Bend 2](https://github.com/bendlang/bend)（v2.0.35。記録の多くは v2.0.34 で取り、2.0.35 に上げたときに Windows と Mac の両方で測り直した）で、証明付きの小さな HTTP サーバーを書いて動かした記録です。
+[Bend 2](https://github.com/bendlang/bend)（v2.0.35。記録の多くは v2.0.34 で取り、2.0.35 に上げたときに Windows と Mac の両方で測り直した。2.0.36 は Base の TCP の型が変わってサーバーが通らないので、上げていない。[docs/language.md](docs/language.md)）で、証明付きの小さな HTTP サーバーを書いて動かした記録です。
 Linux（Claude Code のクラウド環境）と、Windows の WSL コンテナ（wslc）の両方で動作を確かめました。
 そのあと macOS（Apple M2）でも、コンテナなしで動くことを確かめました。
 そのあと、Windows の機（Ryzen 5 3600、RTX 5060 Ti）で、Bend の売り文句を一つずつ試しました。
