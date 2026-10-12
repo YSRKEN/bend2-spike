@@ -154,24 +154,28 @@ def route(+path: String, +self: String) -> IO(String):
 
 # ---- 1 接続の処理 ----
 
-def handle.sent(m: Socket & Result<&1, &1, U32 & String, Unit>) -> IO(Unit):
+# 送りきれなかったとき（失敗の 2 つ目は送れなかった残り）も、送り直さずに閉じる
+def handle.sent(m: Socket & Result<&1, &1, (U32 & String) & String, Unit>) -> IO(Unit):
   (s, r) = m
   Socket.close(s)
 
-def handle.read(+self: String, m: Socket & Result<&1, &1, U32 & String, String>) -> IO(Unit):
+# 相手が何も送らずに送り終えた（None{}）ときは、応答せずに閉じる
+def handle.read(+self: String, m: Socket & Result<&1, &1, U32 & String, Maybe<&1, String>>) -> IO(Unit):
   (s, r) = m
   match r:
-    case Done{req}:
+    case Done{Some{req}}:
       do IO<Unit>:
         resp : String <- route(path_of(req), self)
-        sent : Socket & Result<&1, &1, U32 & String, Unit> <- TCP.send(s, resp)
+        sent : Socket & Result<&1, &1, (U32 & String) & String, Unit> <- TCP.send(s, resp)
         handle.sent(sent)
+    case Done{None{}}:
+      Socket.close(s)
     case Fail{e}:
       Socket.close(s)
 
 def handle(+self: String, s: Socket) -> IO(Unit):
   do IO<Unit>:
-    m : Socket & Result<&1, &1, U32 & String, String> <- TCP.recv(s, 4096)
+    m : Socket & Result<&1, &1, U32 & String, Maybe<&1, String>> <- TCP.recv(s, 4096)
     handle.read(self, m)
 
 # ---- accept ループ（停止性のため Nat の燃料で回数を決める） ----
