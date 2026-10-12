@@ -193,11 +193,11 @@ JSON の配列を `JArr{xs: List<&2, J>}` と書き、`size(JArr{rest})` と組�
 最後の行のとおり、カーネルが保証するのは「渡された定義のもとで証明が正しい」ことまでで、定義や法則が意図どおりに訳されたかは保証しない。
 ガイドの「the translation has no proof, so read it to confirm a law」はこのことを言っている。
 
-### bend2 は通すがカーネルは拒む例が、2.0.35 にもある
+### bend2 は通すがカーネルは拒む例が、2.0.36 にもある
 
 [bendlang/bend#1167](https://github.com/bendlang/bend/issues/1167)（未解決）の例は、2.0.34 でも `--check-only` が通り、`--verdict` が
 「TypeScript の実装と形式化されたカーネルの食い違い」という知らせ付きで `SOME PROOFS FAIL` になった。2026-10-07 に Windows（wslc）の
-2.0.35 でも同じ結果になった。構成子を組み直して自分を呼ぶ再帰
+2.0.35 でも、2026-10-12 に 2.0.36 でも同じ結果になった。構成子を組み直して自分を呼ぶ再帰
 （`height(Node{rest})`）で、issue のコメントでは、bend2 が通す形は実際には必ず小さくなるので、偽を通したのではなくカーネルの規則が
 狭いだけと分析されている。
 
@@ -212,7 +212,7 @@ JSON の配列を `JArr{xs: List<&2, J>}` と書き、`size(JArr{rest})` と組�
 持つ def は、カーネルへの入力に載らず、範囲外とも報告されない。上の #1167 と同じ再帰をこの def の中に書くと、`--verdict` が
 `ALL PROOFS CHECK` を出した。`~v: Void` を外しただけの同じ本体は、カーネルに渡って拒まれる。2.0.35 のリリースノートには
 「空の型が `D.efq : D -> <>` 付きでカーネルに渡る」（#1183）という修正があるが、2026-10-07 に Windows（wslc）の 2.0.35 で試すと、
-下の def はやはり `ALL PROOFS CHECK` になった。
+下の def はやはり `ALL PROOFS CHECK` になった。2026-10-12 に 2.0.36 で試しても同じだった。
 
 ```python
 type Void is Data:

@@ -31,7 +31,7 @@ cgroup v1 の `memory.limit_in_bytes` と `cpu.cfs_quota_us`。cgroup v2 の `cp
 
 | やりたいこと | 要るもの | 大きさ |
 |---|---|---|
-| 実行する（`bend x.bend`）、証明を検査する（`--check-only`） | bend 本体だけ（依存は glibc のみ） | 80 MB（2.0.35。`du -sh ~/.bend` で測った。同じ測り方で 2.0.34 は 92 MB） |
+| 実行する（`bend x.bend`）、証明を検査する（`--check-only`） | bend 本体だけ（依存は glibc のみ） | 92 MB（2.0.36。`du -sh ~/.bend` で測った。同じ測り方で 2.0.35 は 80 MB、2.0.34 は 92 MB） |
 | ネイティブビルドする（`bend x.bend -o x`） | 上に加えて clang 14 以上 | clang 一式で約 197 MB |
 | Lean で証明を再検査する（`--verdict`） | 上に加えて Lean v4.34.0 | 2.9 GB |
 
@@ -227,4 +227,4 @@ curl が終了コード 60 で止まった。確認のときだけ CA を足し�
 
 ---
 
-最終更新: 2026-10-07
+最終更新: 2026-10-12
