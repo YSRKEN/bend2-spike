@@ -11,9 +11,10 @@ set -euo pipefail
 src=$1
 out=$2
 bend "$src" -o "$out.c"
-grep -q '^  return managed != 0$' "$out.c" || { echo "gpu_probe の検査の行が見つからない（bend の版が違う？）" >&2; exit 1; }
+# 検査の行は版で形が違う。2.0.35 までは `return managed != 0`、2.0.36 は `if (managed == 0) {` で理由の文を返す
+grep -q -e '^  return managed != 0$' -e '^  if (managed == 0) {$' "$out.c" || { echo "gpu_probe の検査の行が見つからない（bend の版が違う？）" >&2; exit 1; }
 # sed -i は GNU と BSD（macOS）で書き方が違うので、書き出してから置き換える
-sed 's/^  return managed != 0$/  return 1/' "$out.c" > "$out.patched.c" && mv "$out.patched.c" "$out.c"
+sed -e 's/^  return managed != 0$/  return 1/' -e 's/^  if (managed == 0) {$/  if (0) {/' "$out.c" > "$out.patched.c" && mv "$out.patched.c" "$out.c"
 cuda=${CUDA_HOME:-/usr/local/cuda}
 clang -DBEND_CUDA=1 -I"$cuda/include" -L"$cuda/lib64" -std=c11 -O3 "$out.c" -lpthread -lm -lcuda -lnvrtc -o "$out"
 "$out" --gpu-build

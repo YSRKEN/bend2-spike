@@ -20,6 +20,8 @@ wslc のコンテナから GPU 自体は見える。ところが bend の実行�
 | 判定を外したビルド（`bench/build-wsl-gpu.sh`）で `./x --gpu 1GB` | GPU で走り、CPU・C と同じ答え。`--threads 1` にしても速いままなので、計算は GPU でしている |
 
 表は 2.0.34 で確かめた。2026-10-07 に 2.0.35 でも、パッチなしの `--gpu on` が同じエラー文で止まり、同じ 1 行の書き換えで GPU で走ることを確かめた。
+2026-10-12 に 2.0.36 で試すと、パッチなしの `--gpu on` は `CUDA device lacks concurrent managed access (WSL2 lacks it)` と理由を出して終了コード 1 で止まった。
+判定の行の形が変わったので、書き換える行も変えた（下の「パッチを当てて GPU で走らせる」）。書き換えれば GPU で走り、答えも CPU と同じだった。
 
 ## GPU を使わない理由: WSL2 には concurrent managed access が無い
 
@@ -42,8 +44,9 @@ Windows 上で bend の GPU 実行を公式に使う道は、当面無いと考�
 
 ## パッチを当てて GPU で走らせる
 
-`bench/build-wsl-gpu.sh` は、`bend x.bend -o x.c` で C を書き出し、`gpu_probe()` の `return managed != 0` を `return 1` に変えてから、
-bend と同じ引数で clang に渡す。最後にできた実行ファイル自身に `--gpu-build` をさせて、NVRTC で `x.gpu` を作る。
+`bench/build-wsl-gpu.sh` は、`bend x.bend -o x.c` で C を書き出し、`gpu_probe()` の判定を外してから、
+bend と同じ引数で clang に渡す。外す行は版で違う。2.0.35 までは `return managed != 0` を `return 1` に、2.0.36 は理由の文を返す
+`if (managed == 0) {` を `if (0) {` に変える。どちらの行も見つからなければ、何もせずに止まる。最後にできた実行ファイル自身に `--gpu-build` をさせて、NVRTC で `x.gpu` を作る。
 
 ```powershell
 # GPU 用のイメージを作る（CUDA 12.9 の NVRTC と clang 19 入り）
@@ -174,4 +177,4 @@ macOS に打ち切られ、計測がそこで止まったが、2.0.35 では 4,0
 
 ---
 
-最終更新: 2026-10-07
+最終更新: 2026-10-12

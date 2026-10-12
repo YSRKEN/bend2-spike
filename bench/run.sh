@@ -96,7 +96,8 @@ gpu_build() {  # gpu_build <名前>: $tmp/<名前>-gpu を作る。作れなけ�
   local home=${BEND_GPU_HOME:-$BEND_HOME}
   case $gpu in
     off) return 1 ;;
-    cuda-wsl) PATH="$home/bin:$PATH" BEND_HOME="$home" bash build-wsl-gpu.sh "$1.bend" "$tmp/$1-gpu" > /dev/null 2>&1 || return 1 ;;
+    cuda-wsl) PATH="$home/bin:$PATH" BEND_HOME="$home" bash build-wsl-gpu.sh "$1.bend" "$tmp/$1-gpu" > /dev/null 2>"$tmp/$1-gpu.err" \
+      || { note "$1 の GPU 用のプログラムができない（$gpu: $(tail -1 "$tmp/$1-gpu.err")）。GPU の行を飛ばす"; return 1; } ;;
     *) BEND_HOME="$home" "$home/bin/bend" "$1.bend" -o "$tmp/$1-gpu" > /dev/null 2>&1 || true ;;
   esac
   [ -f "$tmp/$1-gpu.gpu" ] || [ "$gpu" = cuda-wsl ] || { note "$1 の GPU 用のプログラムができない（$gpu）。GPU の行を飛ばす"; return 1; }
